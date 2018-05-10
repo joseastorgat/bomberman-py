@@ -7,8 +7,8 @@ from Controller.control import *
 os.environ['SDL_VIDEO_CENTERED'] = '1'  # centrar pantalla
 
 def main():
-    ancho = 750
-    alto = 650
+    ancho = 450
+    alto = 450
 
     init(ancho, alto, "Robots")
     game = Controller(ancho,alto)

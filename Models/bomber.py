@@ -52,18 +52,21 @@ class Bomber(Figura):
     def release_bomb(self):
         if self.n_active_bombs < self.max_bombs:
             self.n_active_bombs+=1
-            self.active_bombs.append(Bomba(pos=Vector(self.pos.x,self.pos.y)))
+            self.active_bombs.append(Bomba(pos=Vector(int((self.pos.x+25)/50)*50,int((self.pos.y+25)/50)*50)))
             print("[INFO] space pressed bomba: {0}".format(self.pos))
             return self.pos
         return None
 
     def explode_bombs(self):
         poses = []
+        active = []
         for bomb in self.active_bombs:
             if bomb.explode():
                 self.n_active_bombs-=1
                 poses.append(bomb.pos)
                 self.active_bombs.remove(bomb)
                 del bomb
-        return poses
+            else:
+                active.append(bomb.pos)
+        return poses, active
 

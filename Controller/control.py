@@ -1,7 +1,7 @@
 import pygame
 import sys
 import numpy as np
-
+import math
 #Vista
 from View import vista
 #Utils
@@ -29,17 +29,19 @@ class Controller:
 
         """
         self.scale = scale
-        #self.map = generate_initial_map(width,height,scale)
 
+        self._w = int( math.ceil(float(width)/float(self.scale)))
+        self._h = int( math.ceil(float(height)/float(self.scale)))
+        
         self.fondo = Fondo()
         
-        pos_ladrillos = get_ladrillos_pos(width,height)
+        pos_ladrillos = self.get_ladrillos_pos()
         
         self.ladrillos = []
         for pos in pos_ladrillos:
             self.ladrillos.append(Ladrillo(pos))
 
-        pos_bloques = get_bloques_pos(width,height)
+        pos_bloques = self.get_bloques_pos()
 
         self.bloques = []
         for pos in pos_bloques:
@@ -57,29 +59,48 @@ class Controller:
         self.enemigos[1].set_vel(Vector(0,-1))
         self.enemigos[2].set_vel(Vector(1,0))
 
+        self.explosiones  = []
+        self.active_bombs = []
+
         self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber,  self.bombas, self.enemigos, self.bloques)
+
         self.run = True
     
 
     def update(self):
+        
+        self.generate_map()
+        
+        self.explosiones = []
+        self.active_bombs = []
 
         # ver diferencia con event.get
         keys = pygame.key.get_pressed()
 
+        ## Mover al bomber #####
+        bomber_x = int((self.bomber.pos.x + 25)/50)
+        bomber_y = int((self.bomber.pos.y + 25)/50)
+        self.map[bomber_x,bomber_y] = 2
+
+        self.bomber.set_vel(Vector(0,0))
+
         if keys[pygame.K_RIGHT]:
-            self.bomber.set_vel(Vector(1,0))
+            if self.map[bomber_x + 1][bomber_y] == 0:
+                self.bomber.set_vel(Vector(1,0))
 
         elif keys[pygame.K_LEFT]:
-            self.bomber.set_vel(Vector(-1,0))
+            if self.map[bomber_x - 1][bomber_y] == 0:
+                self.bomber.set_vel(Vector(-1,0))
 
         elif keys[pygame.K_UP]:
-            self.bomber.set_vel(Vector(0,1))
+            if self.map[bomber_x ][bomber_y + 1] == 0:
+                self.bomber.set_vel(Vector(0,1))
 
         elif keys[pygame.K_DOWN]:
-            self.bomber.set_vel(Vector(0,-1))
+            if self.map[bomber_x ][bomber_y - 1] == 0:
+                self.bomber.set_vel(Vector(0,-1))
 
-        else:
-            self.bomber.set_vel(Vector(0,0))
+        ###########################
 
         for event in pygame.event.get():
 
@@ -89,111 +110,138 @@ class Controller:
                 if event.key == K_s:
                     self.run = False
 
-                if event.key == K_SPACE:
+                if event.key == K_a:
                     pos_bomba = self.bomber.release_bomb()
-                    # if pos_bomba:
-                    #     bomba = Bomba(pos =Vector(pos_bomba.x, pos_bomba.y))
-                    #     print("[INFO] space pressed bomba: {0}".format(pos_bomba))
-                    #     self.bombas.append(bomba)
+
 
                 if event.key == K_p:
                     self.fondo.change_color((150/255.0, 0/255.0, 150/255.0))
+
+        #Write Map!      
+
+        #Actualizar Escenario
+        # Explotar Bombas
+        # Mover Enemigos
+
+        explosion, active = self.bomber.explode_bombs()
+        
+        self.explosiones+=explosion
+        self.active_bombs+=active
         
 
-        #Update Actual scenario
-        self.bomber.explode_bombs()
         self.bomber.move()
 
-        for enemigo in self.enemigos:
+        self.move_bots()
+        #Explotar Bombas
+        print(self.map)
+
+        self.vista.dibujar()
+
+        return self.run
+
+    def write_map(self):
+        
+
+        #pos bomber
+        map[self.bomber.pos.x*self.scale][self.bomber.pos.y*scale] = "B"
+
+        #pos bombs
+        for bomb in self.bombs:
+            map[bomb.x*self.scale][bomb.y*scale] = "X"
+
+        #pos ladrillos destructibles
+
+    def move_bots(self):
+
+        for bot in self.enemigos:            
+
+            bot_x = int((bot.pos.x + 25)/50)
+            bot_y = int((bot.pos.y + 25)/50)
+
+            if bot.vel.x == 0 and bot.vel.y == 0:
+                des = np.random.choice(np.arange(0, 2), p=[0.2,0.8])
+                
+                if des == 0:
+                    pass
+                
+                else:
+                    if self.map[bot_x + 1][bot_y] == 0:
+                        bot.set_vel(Vector(1, 0))
+
+                    elif self.map[bot_x][bot_y + 1 ] == 0:
+                        bot.set_vel(Vector(0, 1))
+
+                    elif self.map[bot_x - 1][bot_y] == 0:
+                        bot.set_vel(Vector(-1, 0))
+                    
+                    else:
+                        bot.set_vel(Vector(0, -1))
             
-            des = np.random.choice(np.arange(0, 4), p=[0.8,0.075,0.075,0.05])
-            if des == 0:
-                pass
-            
-            elif des == 1:
-                enemigo.set_vel(Vector(enemigo.vel.y, enemigo.vel.x))
+            else:
+                des = np.random.choice(np.arange(0, 4), p=[0.9,0.045,0.045,0.01])
+                if des == 0 and self.map[bot_x + bot.vel.x][bot_y + bot.vel.y] == 0:
+                    pass
 
-            elif des == 2:
-                enemigo.set_vel(Vector(-enemigo.vel.y, -enemigo.vel.x))
+                elif des == 1 and self.map[bot_x + bot.vel.y][bot_y + bot.vel.x] == 0:
+                    bot.set_vel(Vector(bot.vel.y, bot.vel.x))
 
-            elif des == 4:
-                enemigo.set_vel(Vector(-enemigo.vel.x, -enemigo.vel.y))
+                elif des == 2 and self.map[bot_x - bot.vel.y][bot_y - bot.vel.x] == 0:
+                    bot.set_vel(Vector(-bot.vel.y, -bot.vel.x))
 
-            enemigo.move()
+                elif des == 3 and self.map[bot_x - bot.vel.x][bot_y - bot.vel.y] == 0:
+                    bot.set_vel(Vector(-bot.vel.x, -bot.vel.y))
+
+                else:
+                    bot.set_vel(Vector(0, 0))
+                
+            self.map[bot_x][bot_y] = 3
+            bot.move()
 
             bomb = np.random.choice(np.arange(0, 2), p=[0.95,0.05])
             if bomb == 1:
-                enemigo.release_bomb()
-            enemigo.explode_bombs()
+                bot.release_bomb()
 
+            explosion, active = bot.explode_bombs()
+            self.explosiones+=explosion
+            self.active_bombs += active
 
-        #Action for Enemy Bombers
-        self.vista.dibujar()
-        pygame.display.flip()  # actualizar pantalla
-        return self.run
+    def get_ladrillos_pos(self):
 
-        def write_map(self):
-            
+        pos_ladrillos = []
+        for i in range(self._h):
+            pos_ladrillos.append(Vector(0,50*i))
+            pos_ladrillos.append(Vector((self._w-1)*50,50*i))
+        
+        for i in range(self._w):
+            pos_ladrillos.append(Vector(50*i, 0))
+            pos_ladrillos.append(Vector(50*i, (self._h-1)*50))
 
-            #pos bomber
-            map[self.bomber.pos.x*self.scale][self.bomber.pos.y*scale] = "B"
+        for i in range(1,self._w-1):
+            for j in range(1,self._h-1):
+                if i%2==0 and j%2==0:
+                    pos_ladrillos.append(Vector(50*i, 50*j))
 
-            #pos bombs
-            for bomb in self.bombs:
-                map[bomb.pos.x*self.scale][bomb.pos.y*scale] = "X"
+        return pos_ladrillos
 
-            #pos ladrillos destructibles
+    def get_bloques_pos(self):
 
+        pos_bloques = []
+        for i in range(1,self._w-1):
+            for j in range(1,self._h-1):
+                if i%2!=0 and j%2!=0:
+                    pos_bloques.append(Vector(50*i, 50*j))
+        return pos_bloques
 
-def get_ladrillos_pos(width,height):
+    def generate_map(self):
+        map = np.zeros((self._w, self._h))
 
-    pos_ladrillos = []
-    for i in range(int(height/50)):
-        pos_ladrillos.append(Vector(0,50*i))
-        pos_ladrillos.append(Vector(width-50,50*i))
-    
-    for i in range(int(width/50)):
-        pos_ladrillos.append(Vector(50*i, 0))
-        pos_ladrillos.append(Vector(50*i, height-50))
+        # Ladrillos indestructibles
+        
+        for ladrillo in self.ladrillos:
+            map[int((ladrillo.pos.x/50)),int((ladrillo.pos.y/50)) ] = 1
 
-    for i in range(1,int(width/50)-1):
-        for j in range(1,int(height/50)-1):
-            if i%2==0 and j%2==0:
-                pos_ladrillos.append(Vector(50*i, 50*j))
+        for bomb in self.active_bombs:
+            map[int((bomb.x + 25)/50)][int((bomb.y + 25)/50)] = 9
 
-    return pos_ladrillos
-
-def get_bloques_pos(width,height):
-
-    pos_bloques = []
-
-    for i in range(1,int(width/50)-1):
-        for j in range(1,int(height/50)-1):
-            if i%2!=0 and j%2!=0:
-                pos_bloques.append(Vector(50*i, 50*j))
-    return pos_bloques
-
-
-
-
-def generate_initial_map(width,height,scale):
-    _width  = int(width/scale)
-    _height = int(height/scale)
-    
-    map = np.zeros(_width, _height)
-
-    # Ladrillos indestructibles
-    for i in range(int(height/scale)):
-        map[0][i] = "I"
-        map[_width-1][i] = "I"
-    
-    for i in range(int(width/scale)):
-        map[i][0] = "I"
-        map[i][_height-1] = "I"
-
-    for i in range(1,int(width/scale)-1):
-        for j in range(1,int(height/scale)-1):
-            if i%2==0 and j%2==0:
-                map[i][j] = "I"
-    return map
+        self.map = map
 

@@ -26,24 +26,13 @@ class Bloque(Figura):
         
         for i in range(0,5):
 
+            glVertex2f(49,(i+1)*10-1)
             glVertex2f(49,i*10+1)
+            glVertex2f(self.divs[i]+1,i*10+1)
+            glVertex2f(self.divs[i]+1,(i+1)*10-1)
+
+            glVertex2f(self.divs[i]-1,(i+1)*10-1)
+            glVertex2f(self.divs[i]-1,i*10+1)
             glVertex2f(1,i*10+1)
             glVertex2f(1,(i+1)*10-1)
-            glVertex2f(49,(i+1)*10-1)
-
-        glEnd()
-
-
-        glBegin(GL_LINES)
-        
-        glColor3f(90.0/255.0, 90.0/255.0, 90.0/255.0) 
-        
-        for i in range(0,5):
-            glVertex2f(47,i*10)
-            glVertex2f(3,i*10)
-
-            glVertex2f(self.divs[i], i*10)
-            glVertex2f(self.divs[i], (i+1)*10)
-
-
         glEnd()
