@@ -1,25 +1,29 @@
 import os
 
-from CC3501Utils import *
+from Utils.CC3501Utils import *
 import math
+import copy
+
+from Models.bomba import Bomba
 
 ####################################################
-# Clase Fondo
+# Clase Bomber
 ####################################################
 
 class Bomber(Figura):
-    def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), vel = 5.0, max_boms=1):
+    def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), vel = 5.0, max_bombs=1):
         self.vel = vel
-        self.max_boms = max_boms
-        self.active_boms = 0
+        self.max_bombs = max_bombs
+        self.n_active_bombs = 0
+        self.active_bombs = []
         super().__init__(pos, rgb)
 
     def figura(self):
 
         radio = 20
         paso = 20
-        x = 0
-        y = 0
+        x = 25
+        y = 25
     
         glBegin(GL_TRIANGLE_FAN)
         glColor3f(0, 0, 0)
@@ -33,12 +37,28 @@ class Bomber(Figura):
         self.pos.x += self.vel * direction.x
         self.pos.y += self.vel * direction.y
 
-    def upgrade_bombs(self):
-        self.max_boms+=1
-    
-    def downgrade_boms(self):
-        self.max_boms-=1
+    def upgrade_max_bombs(self):
+        self.max_bombs+=1
+        return
 
-    def release_boms(self):
-        if self.active_boms < self.max_boms:
+    def downgrade_max_bombs(self):
+        self.max_bombs-=1
+        return
+
+    def release_bomb(self):
+        if self.n_active_bombs < self.max_bombs:
+            self.n_active_bombs+=1
+            self.active_bombs.append(Bomba(pos=Vector(self.pos.x,self.pos.y)))
+            print("[INFO] space pressed bomba: {0}".format(self.pos))
             return self.pos
+        return None
+
+    def explode_bombs(self):
+        poses = []
+        for bomb in self.active_bombs:
+            if bomb.explode():
+                self.n_active_bombs-=1
+                poses.append(bomb.pos)
+                self.active_bombs.remove(bomb)
+                del bomb
+        return poses

@@ -1,6 +1,6 @@
 import os
 import random
-from CC3501Utils import *
+from Utils.CC3501Utils import *
 
 from Controller.control import *
 

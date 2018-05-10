@@ -1,6 +1,6 @@
 import os
 
-from CC3501Utils import *
+from Utils.CC3501Utils import *
 
 ####################################################
 # Clase Fondo
