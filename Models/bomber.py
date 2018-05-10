@@ -11,11 +11,12 @@ from Models.bomba import Bomba
 ####################################################
 
 class Bomber(Figura):
-    def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), vel = 5.0, max_bombs=1):
+    def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), vel = Vector(0,0), rap = 5, max_bombs=1):
         self.vel = vel
         self.max_bombs = max_bombs
         self.n_active_bombs = 0
         self.active_bombs = []
+        self.rap = 5
         super().__init__(pos, rgb)
 
     def figura(self):
@@ -33,9 +34,12 @@ class Bomber(Figura):
         glEnd()
 
 
-    def move(self, direction = Vector(0,1)):
-        self.pos.x += self.vel * direction.x
-        self.pos.y += self.vel * direction.y
+    def move(self):
+        self.pos.x += self.vel.x*self.rap 
+        self.pos.y += self.vel.y*self.rap
+
+    def set_vel(self,vel = Vector(0,1)):
+        self.vel = vel
 
     def upgrade_max_bombs(self):
         self.max_bombs+=1
@@ -62,3 +66,4 @@ class Bomber(Figura):
                 self.active_bombs.remove(bomb)
                 del bomb
         return poses
+

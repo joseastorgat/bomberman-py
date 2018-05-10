@@ -15,7 +15,7 @@ class Bomba(Figura):
 
     def figura(self):
 
-        radio = 20
+        radio = 10 + 4*int((time.time() - self.init_time))
         paso = 20
         x = 25
         y = 25
@@ -28,5 +28,6 @@ class Bomba(Figura):
         glEnd()
 
     def explode(self):
+        self.crear()
         return time.time() - self.init_time> 3.0
 
