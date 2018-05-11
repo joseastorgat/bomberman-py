@@ -78,6 +78,11 @@ class Vector:
         return "Vector(" + str(self.x) + "," + str(self.y) + ")"
 
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.x == other.x and self.y ==other.y
+        else:
+            return False
 # vector en coordenadas polares
 class VectorPolar(Vector):
     def __init__(self, radio, ang):
