@@ -7,7 +7,7 @@ from Utils.CC3501Utils import *
 ####################################################
 
 class Fondo(Figura):
-    def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), bgcolor = (103.0/255.0, 193.0/255.0, 182.0/255.0)):
+    def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), height=450, width=450, bgcolor = (0.0/255.0, 120.0/255.0, 0.0/255.0)):
         self.bgcolor = bgcolor
         super().__init__(pos, rgb)
 

@@ -63,10 +63,14 @@ class Bomber(Figura):
         for bomb in self.active_bombs:
             if bomb.explode():
                 self.n_active_bombs-=1
-                poses.append(bomb.pos)
+                explode_pos = Vector(bomb.pos.x,bomb.pos.y)
+                #print("explode bomb")
+                #print(explode_pos)
+                poses.append(explode_pos)
                 self.active_bombs.remove(bomb)
                 del bomb
             else:
                 active.append(bomb.pos)
+        #print(poses, active)
         return poses, active
 
