@@ -2,6 +2,7 @@ import pygame
 import sys
 import numpy as np
 import math
+import random
 #Vista
 from View import vista
 #Utils
@@ -33,36 +34,51 @@ class Controller:
         self._w = int( math.ceil(float(width)/float(self.scale)))
         self._h = int( math.ceil(float(height)/float(self.scale)))
         
-        self.fondo = Fondo()
+        self.fondo = Fondo(width=width, height=height)
         
         pos_ladrillos = self.get_ladrillos_pos()
         
         self.ladrillos = []
         for pos in pos_ladrillos:
-            self.ladrillos.append(Ladrillo(pos))
+            self.ladrillos.append(Ladrillo(pos=Vector(pos.x,pos.y)))
 
-        pos_bloques = self.get_bloques_pos()
+        pos_bloques = self.get_bloques_pos(pos_ladrillos)
 
         self.bloques = []
         for pos in pos_bloques:
+            print(pos)
             self.bloques.append(Bloque(pos))
 
         self.bomber = Bomber(Vector(1*scale,1*scale))
         
         self.bombas = []
 
-        self.enemigos = [Bomber(Vector(width-2*scale, 1*scale)), 
-                         Bomber(Vector(width-2*scale, height-2*scale)), 
-                         Bomber(Vector(1*scale, height-2*scale))]
+        self.enemigos = []
 
+        self.enemigos.append(Bomber(Vector(width-2*scale, 1*scale)))
+        self.enemigos.append(Bomber(Vector(width-2*scale, height-2*scale)))
+        self.enemigos.append(Bomber(Vector(1*scale, height-2*scale)))
         self.enemigos[0].set_vel(Vector(-1,0))
         self.enemigos[1].set_vel(Vector(0,-1))
         self.enemigos[2].set_vel(Vector(1,0))
 
         self.explosiones  = []
         self.active_bombs = []
+        self.generate_map()
 
-        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber,  self.bombas, self.enemigos, self.bloques)
+        #Sombras Iniciales
+        for ladrillo in self.ladrillos:
+            if self.map[int(ladrillo.pos.x/50)][int(ladrillo.pos.y/50-1)] == 0:
+                ladrillo.set_sombra()
+        
+        for bloque in self.bloques:
+            if self.map[int(bloque.pos.x/50)][int(bloque.pos.y/50-1)] == 0:
+                bloque.set_sombra()
+
+
+
+
+        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber,  self.bombas, self.enemigos, self.bloques, self.map)
 
         self.run = True
     
@@ -80,7 +96,7 @@ class Controller:
         ## Mover al bomber #####
         bomber_x = int((self.bomber.pos.x + 25)/50)
         bomber_y = int((self.bomber.pos.y + 25)/50)
-        self.map[bomber_x,bomber_y] = 2
+        self.map[bomber_x,bomber_y] = 4
 
         self.bomber.set_vel(Vector(0,0))
 
@@ -113,7 +129,6 @@ class Controller:
                 if event.key == K_a:
                     pos_bomba = self.bomber.release_bomb()
 
-
                 if event.key == K_p:
                     self.fondo.change_color((150/255.0, 0/255.0, 150/255.0))
 
@@ -123,33 +138,18 @@ class Controller:
         # Explotar Bombas
         # Mover Enemigos
 
-        explosion, active = self.bomber.explode_bombs()
         
-        self.explosiones+=explosion
-        self.active_bombs+=active
-        
+        #explotar Bombas
 
+        self.explotar_bombas()
+        
+        #mover a los personajes
         self.bomber.move()
-
         self.move_bots()
-        #Explotar Bombas
-        print(self.map)
 
         self.vista.dibujar()
 
         return self.run
-
-    def write_map(self):
-        
-
-        #pos bomber
-        map[self.bomber.pos.x*self.scale][self.bomber.pos.y*scale] = "B"
-
-        #pos bombs
-        for bomb in self.bombs:
-            map[bomb.x*self.scale][bomb.y*scale] = "X"
-
-        #pos ladrillos destructibles
 
     def move_bots(self):
 
@@ -194,16 +194,70 @@ class Controller:
                 else:
                     bot.set_vel(Vector(0, 0))
                 
-            self.map[bot_x][bot_y] = 3
+            self.map[bot_x][bot_y] = 5
             bot.move()
 
             bomb = np.random.choice(np.arange(0, 2), p=[0.95,0.05])
             if bomb == 1:
                 bot.release_bomb()
 
+    def explotar_bombas(self):
+        rang_explosion = []
+
+        explosion, active = self.bomber.explode_bombs()
+        
+        self.explosiones+=explosion
+        self.active_bombs+=active
+        
+        for bot in self.enemigos:
             explosion, active = bot.explode_bombs()
             self.explosiones+=explosion
-            self.active_bombs += active
+            self.active_bombs+=active
+
+        for bomb in self.explosiones:
+            bomb_pos = (int((bomb.x+25)/50),int((bomb.y+25)/50))
+            rang_explosion.append(bomb_pos)
+
+            if self.map[bomb_pos[0]+1][bomb_pos[1]]!=1:
+                rang_explosion.append((bomb_pos[0]+1,bomb_pos[1]))
+
+            if self.map[bomb_pos[0]-1][bomb_pos[1]]!=1:
+                rang_explosion.append((bomb_pos[0]-1,bomb_pos[1]))
+
+            if self.map[bomb_pos[0]][bomb_pos[1]+1]!=1:
+                rang_explosion.append((bomb_pos[0],bomb_pos[1]+1))
+
+            if self.map[bomb_pos[0]][bomb_pos[1]-1]!=1:
+                rang_explosion.append((bomb_pos[0],bomb_pos[1]-1))
+
+        sombras = []
+
+        for bloque in self.bloques:
+            if ((bloque.pos.x)/50,(bloque.pos.y)/50) in rang_explosion:
+                sombras.append(Vector((bloque.pos.x), (bloque.pos.y+50)))
+                self.bloques.remove(bloque)
+                del bloque
+            pass
+        
+        for bot in self.enemigos:
+            if ((bot.pos.x+25)/50,(bot.pos.y+25)/50) in rang_explosion:
+                print("Muere BoT!")
+                self.enemigos.remove(bot)
+                del bot
+            pass
+
+        for bloque in self.bloques:
+            if bloque.pos in sombras:
+                bloque.set_sombra()
+        
+        for ladrillo in self.ladrillos:
+            if ladrillo.pos in sombras:
+                ladrillo.set_sombra()
+
+        if (int((self.bomber.pos.x+25)/50),int((self.bomber.pos.y+25)/50)) in rang_explosion:
+            del self.bomber
+            print("Game Over")
+
 
     def get_ladrillos_pos(self):
 
@@ -223,25 +277,38 @@ class Controller:
 
         return pos_ladrillos
 
-    def get_bloques_pos(self):
-
+    def get_bloques_pos(self,pos_ladrillos):
+        max_bloques = int((self._h * self._w - 2*(self._h + self._w -1))/4)
+        print(max_bloques)
+        bloques = 0
         pos_bloques = []
-        for i in range(1,self._w-1):
-            for j in range(1,self._h-1):
-                if i%2!=0 and j%2!=0:
-                    pos_bloques.append(Vector(50*i, 50*j))
+        pos_prohibidas = [Vector(1*50,1*50),Vector(1*50,2*50),Vector(1*50,3*50),
+                        Vector((self._w-2)*50,1*50),Vector((self._w-3)*50,1*50),Vector((self._w-4)*50,1*50),
+                        Vector(2*50,(self._h-1)*50),Vector(3*50,(self._h-1)*50),Vector(4*50,(self._h-1)*50),
+                        Vector((self._w-2)*50,(self._h-2)*50),Vector((self._w-1)*50,(self._h-3)*50),Vector((self._w-1)*50,(self._h-4)*50)]
+        
+        while bloques < max_bloques:
+
+            x = random.randint(1,self._w-2)*50
+            y = random.randint(1,self._h-2)*50
+            print((x,y))
+            nuevo_bloque = Vector(x,y)
+            if not (nuevo_bloque in pos_prohibidas or nuevo_bloque in pos_bloques or nuevo_bloque in pos_ladrillos):
+                pos_bloques.append(nuevo_bloque)
+                bloques+=1
         return pos_bloques
 
     def generate_map(self):
-        map = np.zeros((self._w, self._h))
+        self.map = np.zeros((self._w, self._h))
 
         # Ladrillos indestructibles
         
         for ladrillo in self.ladrillos:
-            map[int((ladrillo.pos.x/50)),int((ladrillo.pos.y/50)) ] = 1
+            self.map[int((ladrillo.pos.x/50)),int((ladrillo.pos.y/50)) ] = 1
+
+        for bloque in self.bloques:
+            self.map[int((bloque.pos.x/50)),int((bloque.pos.y/50)) ] = 2
 
         for bomb in self.active_bombs:
-            map[int((bomb.x + 25)/50)][int((bomb.y + 25)/50)] = 9
-
-        self.map = map
+            self.map[int((bomb.x + 25)/50)][int((bomb.y + 25)/50)] = 9
 
