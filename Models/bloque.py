@@ -11,7 +11,7 @@ class Bloque(Figura):
         print(pos)
         self.divs = []
         for i in range(0,5):
-            self.divs.append(random.randint(10,40))
+            self.divs.append(random.randint(5,45))
         self.sombra = False
         super().__init__(pos, rgb)
 
@@ -37,8 +37,8 @@ class Bloque(Figura):
 
             glVertex2f(self.divs[i]-1,(i+1)*10-1)
             glVertex2f(self.divs[i]-1,i*10+1)
-            glVertex2f(1,i*10+1)
-            glVertex2f(1,(i+1)*10-1)
+            glVertex2f(0,i*10+1)
+            glVertex2f(0,(i+1)*10-1)
         
         if self.sombra:
             glColor3f(0.0/255.0, 72.0/255.0, 0.0/255.0) 

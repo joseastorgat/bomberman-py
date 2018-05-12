@@ -29,75 +29,113 @@ class Controller:
                 0
 
         """
-        self.scale = scale
 
+        #Iniciar Pygame
+        win = init(width, height, "Robots")
+        
+        #Iniciación de Variables a Usar:
+        self.scale = scale
         self._w = int( math.ceil(float(width)/float(self.scale)))
         self._h = int( math.ceil(float(height)/float(self.scale)))
         
-        self.fondo = Fondo(width=width, height=height)
-        
-        pos_ladrillos = self.get_ladrillos_pos()
-        
+
+        self.enemigos  = []
         self.ladrillos = []
+        self.bloques   = []
+        self.explosiones  = []
+        self.active_bombs = []
+
+
+        ############################
+        #   Creación de Objetos:   #
+        ############################
+
+        #Fondo <- Revisar si es necesario un fondo :s
+        self.fondo = Fondo(width=width, height=height)
+
+        #BOMBER#  - # POS INICIAL ESQ INF IZQ #
+
+        self.bomber = Bomber(Vector(1*scale,1*scale))
+        self.bomber.upgrade_max_bombs()
+        
+        #BLOQUES - LADRILLOS #
+        pos_ladrillos = self.get_ladrillos_pos()
         for pos in pos_ladrillos:
             self.ladrillos.append(Ladrillo(pos=Vector(pos.x,pos.y)))
 
-        pos_bloques = self.get_bloques_pos(pos_ladrillos)
-
-        self.bloques = []
+        pos_bloques = self.get_bloques_pos(pos_ladrillos) # <- Aleatoria
         for pos in pos_bloques:
-            print(pos)
             self.bloques.append(Bloque(pos))
 
-        self.bomber = Bomber(Vector(1*scale,1*scale))
-        
-        self.bombas = []
-
-        self.enemigos = []
-
+        #-> ENEMIGOS <-#
         self.enemigos.append(Bomber(Vector(width-2*scale, 1*scale)))
         self.enemigos.append(Bomber(Vector(width-2*scale, height-2*scale)))
         self.enemigos.append(Bomber(Vector(1*scale, height-2*scale)))
+        
+        #-> POS INICIAL ENEMIGOS <-# - # ESQUINAS - TODO: Aleatoria #
         self.enemigos[0].set_vel(Vector(-1,0))
         self.enemigos[1].set_vel(Vector(0,-1))
         self.enemigos[2].set_vel(Vector(1,0))
 
-        self.explosiones  = []
-        self.active_bombs = []
+        #Creacion mapa inicial
         self.generate_map()
 
-        #Sombras Iniciales
-        for ladrillo in self.ladrillos:
-            if self.map[int(ladrillo.pos.x/50)][int(ladrillo.pos.y/50-1)] == 0:
-                ladrillo.set_sombra()
-        
-        for bloque in self.bloques:
-            if self.map[int(bloque.pos.x/50)][int(bloque.pos.y/50-1)] == 0:
-                bloque.set_sombra()
+        # SOMBRAS DE OBJETOS#
+        for obj in self.ladrillos + self.bloques:
+            if self.map[int(obj.pos.x/50)][int(obj.pos.y/50-1)] == 0:
+                obj.set_sombra()
 
-
-
-
-        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber,  self.bombas, self.enemigos, self.bloques, self.map)
-
+        #          Vista           #
+        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber, self.enemigos, self.bloques, self.map, win)
         self.run = True
     
 
     def update(self):
         
+        #Generar mapa nuevamente (ver que bloques se han destruido)
         self.generate_map()
-        
-        self.explosiones = []
-        self.active_bombs = []
 
-        # ver diferencia con event.get
+        #Obtener Teclas Apretadas
         keys = pygame.key.get_pressed()
 
-        ## Mover al bomber #####
+        # Manejo de Eventos!
+        for event in pygame.event.get():
+            if event.type == QUIT:  # cerrar ventana
+                self.run = False
+            if event.type == KEYDOWN:
+                if event.key == K_s:
+                    self.run = False
+                if event.key == K_a:
+                    pos_bomba = self.bomber.release_bomb()
+                    if pos_bomba:
+                        self.map[int((pos_bomba.x + 25)/50)][int((pos_bomba.y + 25)/50)] = 9
+
+        # Bombas de Bots
+        self.bombs_bots()
+
+        #Manejo de Bombas ( Explosiones y Activas )
+        self.explotar_bombas()
+        
+        # Mover Personaje
+        self.mover_personaje(keys) 
+        self.bomber.move()
+
+        # Mover BOTS
+        self.move_bots()
+        for bot in self.enemigos:
+            bot.move()
+        
+        # Dibujar Todo
+        self.vista.dibujar()
+
+        return self.run
+
+
+    def mover_personaje(self, keys):
+
         bomber_x = int((self.bomber.pos.x + 25)/50)
         bomber_y = int((self.bomber.pos.y + 25)/50)
         self.map[bomber_x,bomber_y] = 4
-
         self.bomber.set_vel(Vector(0,0))
 
         if keys[pygame.K_RIGHT]:
@@ -116,42 +154,30 @@ class Controller:
             if self.map[bomber_x ][bomber_y - 1] == 0:
                 self.bomber.set_vel(Vector(0,-1))
 
-        ###########################
-
-        for event in pygame.event.get():
-
-            if event.type == QUIT:  # cerrar ventana
-                self.run = False
-            if event.type == KEYDOWN:
-                if event.key == K_s:
-                    self.run = False
-
-                if event.key == K_a:
-                    pos_bomba = self.bomber.release_bomb()
-
-                if event.key == K_p:
-                    self.fondo.change_color((150/255.0, 0/255.0, 150/255.0))
-
-        #Write Map!      
-
-        #Actualizar Escenario
-        # Explotar Bombas
-        # Mover Enemigos
-
-        
-        #explotar Bombas
-
-        self.explotar_bombas()
-        
-        #mover a los personajes
-        self.bomber.move()
-        self.move_bots()
-
-        self.vista.dibujar()
-
-        return self.run
+    def bombs_bots(self):
+        for bot in self.enemigos:
+            bomb = np.random.choice(np.arange(0, 2), p=[0.95,0.05])
+            if bomb == 1:
+                pos_bomba = bot.release_bomb()
+                if pos_bomba:
+                    self.map[int((pos_bomba.x + 25)/50)][int((pos_bomba.y + 25)/50)] = 9
 
     def move_bots(self):
+        """
+        Define movimientos aleatorios de los bots.
+        
+        Los bots se moverán "probabilisticamente"
+            - 90% Seguir derecho
+            - 4.5% Virar Derecha - Virar Izquierda
+            - 1% Media Vuelta
+        
+        Pero si se encuentran con una pared/bomba/bloque que obstruya su paso, se quedará quieto.
+
+        Un bot Quieto:
+            - 20% Seguirá quieto
+            - 80% Se moverá donde pueda moverse:
+                - Derecha - Arriba - Izquierda - Abajo
+        """
 
         for bot in self.enemigos:            
 
@@ -193,27 +219,28 @@ class Controller:
 
                 else:
                     bot.set_vel(Vector(0, 0))
-                
-            self.map[bot_x][bot_y] = 5
-            bot.move()
 
-            bomb = np.random.choice(np.arange(0, 2), p=[0.95,0.05])
-            if bomb == 1:
-                bot.release_bomb()
+            self.map[bot_x][bot_y] = 5
 
     def explotar_bombas(self):
+        """
+        """
+
+        #Reiniciar explosiones y bombas activas
+        self.explosiones = []  # Posiciones donde una bomba acaba de explotar
+        self.active_bombs = [] # Posiciones donde hay bombas activas
         rang_explosion = []
 
         explosion, active = self.bomber.explode_bombs()
-        
         self.explosiones+=explosion
         self.active_bombs+=active
-        
+                
         for bot in self.enemigos:
             explosion, active = bot.explode_bombs()
             self.explosiones+=explosion
             self.active_bombs+=active
 
+        # Explosiones!
         for bomb in self.explosiones:
             bomb_pos = (int((bomb.x+25)/50),int((bomb.y+25)/50))
             rang_explosion.append(bomb_pos)
@@ -232,6 +259,7 @@ class Controller:
 
         sombras = []
 
+        #DESTRUIR BLOQUES
         for bloque in self.bloques:
             if ((bloque.pos.x)/50,(bloque.pos.y)/50) in rang_explosion:
                 sombras.append(Vector((bloque.pos.x), (bloque.pos.y+50)))
@@ -239,59 +267,66 @@ class Controller:
                 del bloque
             pass
         
+        # MATAR BOTS
         for bot in self.enemigos:
             if ((bot.pos.x+25)/50,(bot.pos.y+25)/50) in rang_explosion:
-                print("Muere BoT!")
                 self.enemigos.remove(bot)
+                print("Muere BoT!")
                 del bot
-            pass
 
-        for bloque in self.bloques:
-            if bloque.pos in sombras:
-                bloque.set_sombra()
-        
-        for ladrillo in self.ladrillos:
-            if ladrillo.pos in sombras:
-                ladrillo.set_sombra()
-
+        # MATAR PERSONAJE -> GAME OVER
         if (int((self.bomber.pos.x+25)/50),int((self.bomber.pos.y+25)/50)) in rang_explosion:
             del self.bomber
             print("Game Over")
 
 
-    def get_ladrillos_pos(self):
+        # AÑADIR NUEVAS SOMBRAS GENERADAS
+        for cuad in self.bloques + self.ladrillos:
+            if cuad.pos in sombras:
+                cuad.set_sombra()        
 
+
+    def get_ladrillos_pos(self):
+        """
+        Entrega lista de vectores, correspondiente a la distribución incicial de ladrillos en el mapa
+        """
         pos_ladrillos = []
-        for i in range(self._h):
+        
+        #Bordes Izquierdo y Derecho
+        for i in range(self._h): 
             pos_ladrillos.append(Vector(0,50*i))
             pos_ladrillos.append(Vector((self._w-1)*50,50*i))
         
+        #Bordes Superior e Inferior
         for i in range(self._w):
             pos_ladrillos.append(Vector(50*i, 0))
             pos_ladrillos.append(Vector(50*i, (self._h-1)*50))
-
+        
+        #Ladrillos indestructibles del Centro
         for i in range(1,self._w-1):
             for j in range(1,self._h-1):
                 if i%2==0 and j%2==0:
                     pos_ladrillos.append(Vector(50*i, 50*j))
-
+        
         return pos_ladrillos
 
-    def get_bloques_pos(self,pos_ladrillos):
-        max_bloques = int((self._h * self._w - 2*(self._h + self._w -1))/4)
-        print(max_bloques)
+    def get_bloques_pos(self,pos_ladrillos, nbloques = 4):
+        """
+        Entrega lista de bloques, correspondiente a la distribución incicial de bloques en el mapa
+        Estas posiciones son aleatorias, sin embargo hay localizaciones donde no pueden existir estos bloques
+        """
+
+        max_bloques = int((self._h * self._w - 2*(self._h + self._w -1))/nbloques) #Numeros de bloques que se generaran
         bloques = 0
         pos_bloques = []
         pos_prohibidas = [Vector(1*50,1*50),Vector(1*50,2*50),Vector(1*50,3*50),
                         Vector((self._w-2)*50,1*50),Vector((self._w-3)*50,1*50),Vector((self._w-4)*50,1*50),
-                        Vector(2*50,(self._h-1)*50),Vector(3*50,(self._h-1)*50),Vector(4*50,(self._h-1)*50),
-                        Vector((self._w-2)*50,(self._h-2)*50),Vector((self._w-1)*50,(self._h-3)*50),Vector((self._w-1)*50,(self._h-4)*50)]
+                        Vector(2*50,(self._h-2)*50),Vector(3*50,(self._h-2)*50),Vector(4*50,(self._h-2)*50),
+                        Vector((self._w-2)*50,(self._h-2)*50),Vector((self._w-2)*50,(self._h-3)*50),Vector((self._w-2)*50,(self._h-4)*50)]
         
         while bloques < max_bloques:
-
             x = random.randint(1,self._w-2)*50
             y = random.randint(1,self._h-2)*50
-            print((x,y))
             nuevo_bloque = Vector(x,y)
             if not (nuevo_bloque in pos_prohibidas or nuevo_bloque in pos_bloques or nuevo_bloque in pos_ladrillos):
                 pos_bloques.append(nuevo_bloque)
@@ -302,10 +337,10 @@ class Controller:
         self.map = np.zeros((self._w, self._h))
 
         # Ladrillos indestructibles
-        
         for ladrillo in self.ladrillos:
             self.map[int((ladrillo.pos.x/50)),int((ladrillo.pos.y/50)) ] = 1
 
+        # Bloques destructibles
         for bloque in self.bloques:
             self.map[int((bloque.pos.x/50)),int((bloque.pos.y/50)) ] = 2
 

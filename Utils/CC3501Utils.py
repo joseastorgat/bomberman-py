@@ -13,7 +13,7 @@ from pygame.locals import *
 def init(ancho, alto, titulo):
     # inicializar pygame
     pygame.init()
-    pygame.display.set_mode((ancho, alto), OPENGL | DOUBLEBUF)
+    screen = pygame.display.set_mode((ancho, alto), OPENGL | DOUBLEBUF)
     pygame.display.set_caption(titulo)
 
     # inicializar opengl
@@ -29,7 +29,7 @@ def init(ancho, alto, titulo):
     glShadeModel(GL_SMOOTH)
     glClearDepth(1.0)
     # glDisable(GL_DEPTH_TEST)
-    return
+    return screen
 
 
 # Clase para representar vectores en un espacio 2D
