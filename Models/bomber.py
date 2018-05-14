@@ -11,12 +11,15 @@ from Models.bomba import Bomba
 ####################################################
 
 class Bomber(Figura):
-    def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), vel = Vector(0,0), rap = 5, max_bombs=1):
-        self.vel = vel
+    def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), vel = Vector(0,0), rapidez = 5, max_bombs=1):
         self.max_bombs = max_bombs
-        self.n_active_bombs = 0
+        self.rapidez = rapidez
+        
+        self.vel = vel
         self.active_bombs = []
-        self.rap = 5
+        self.n_active_bombs = 0
+        self.exploded_bombs = []
+        
         super().__init__(pos, rgb)
 
     def figura(self):
@@ -35,8 +38,8 @@ class Bomber(Figura):
 
 
     def move(self):
-        self.pos.x += self.vel.x*self.rap 
-        self.pos.y += self.vel.y*self.rap
+        self.pos.x += self.vel.x*self.rapidez 
+        self.pos.y += self.vel.y*self.rapidez
 
     def set_vel(self,vel = Vector(0,1)):
         self.vel = vel
@@ -49,10 +52,10 @@ class Bomber(Figura):
         self.max_bombs-=1
         return
 
-    def release_bomb(self):
+    def release_bomb(self, image ,sound):
         if self.n_active_bombs < self.max_bombs:
             self.n_active_bombs+=1
-            self.active_bombs.append(Bomba(pos=Vector(int((self.pos.x+25)/50)*50,int((self.pos.y+25)/50)*50)))
+            self.active_bombs.append(Bomba(image=image, pos=Vector(int((self.pos.x+25)/50)*50,int((self.pos.y+25)/50)*50),sound=sound))
             print("[INFO] space pressed bomba: {0}".format(self.pos))
             return self.pos
         return None
@@ -61,16 +64,22 @@ class Bomber(Figura):
         poses = []
         active = []
         for bomb in self.active_bombs:
+
             if bomb.explode():
                 self.n_active_bombs-=1
                 explode_pos = Vector(bomb.pos.x,bomb.pos.y)
-                #print("explode bomb")
-                #print(explode_pos)
                 poses.append(explode_pos)
-                self.active_bombs.remove(bomb)
-                del bomb
+                self.exploded_bombs.append(bomb) # Bomba se elimina de bombas activas
+                self.active_bombs.remove(bomb) #
             else:
                 active.append(bomb.pos)
+
+        for bomb in self.exploded_bombs:
+            bomb.crear()
+            if bomb.finished:
+                self.exploded_bombs.remove(bomb)
+                del bomb
+
         #print(poses, active)
         return poses, active
 

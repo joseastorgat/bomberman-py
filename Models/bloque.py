@@ -8,7 +8,6 @@ from Utils.CC3501Utils import *
 
 class Bloque(Figura):
     def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0)):
-        print(pos)
         self.divs = []
         for i in range(0,5):
             self.divs.append(random.randint(5,45))
