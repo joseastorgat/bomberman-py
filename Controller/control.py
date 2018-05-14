@@ -3,16 +3,22 @@ import sys
 import numpy as np
 import math
 import random
+import os
+
 #Vista
 from View import vista
+
 #Utils
 from Utils.CC3501Utils import *
+from Utils.Utils import *
+
 #Modelos
 from Models.fondo    import Fondo
 from Models.ladrillo import Ladrillo
 from Models.bomber   import Bomber
 from Models.bomba    import Bomba
 from Models.bloque   import Bloque
+from Models.explosion import Explosion
 
 class Controller:
     def __init__(self, width, height, scale = 50):
@@ -42,42 +48,49 @@ class Controller:
         self.enemigos  = []
         self.ladrillos = []
         self.bloques   = []
+        
         self.explosiones  = []
         self.active_bombs = []
+        #self.bombas_explotadas = []
 
 
         ############################
-        #   Creación de Objetos:   #
+        #      FONDO - BLOQUES     #
         ############################
 
-        #Fondo <- Revisar si es necesario un fondo :s
+        #FONDO
         self.fondo = Fondo(width=width, height=height)
 
-        #BOMBER#  - # POS INICIAL ESQ INF IZQ #
-
-        self.bomber = Bomber(Vector(1*scale,1*scale))
-        self.bomber.upgrade_max_bombs()
-        
-        #BLOQUES - LADRILLOS #
+        #LADRILLOS
         pos_ladrillos = self.get_ladrillos_pos()
         for pos in pos_ladrillos:
             self.ladrillos.append(Ladrillo(pos=Vector(pos.x,pos.y)))
 
+        #BLOQUES
         pos_bloques = self.get_bloques_pos(pos_ladrillos) # <- Aleatoria
         for pos in pos_bloques:
             self.bloques.append(Bloque(pos))
 
-        #-> ENEMIGOS <-#
-        self.enemigos.append(Bomber(Vector(width-2*scale, 1*scale)))
-        self.enemigos.append(Bomber(Vector(width-2*scale, height-2*scale)))
-        self.enemigos.append(Bomber(Vector(1*scale, height-2*scale)))
+        #######################################
+        #####        PERSONAJES           #####
+        #######################################    
         
-        #-> POS INICIAL ENEMIGOS <-# - # ESQUINAS - TODO: Aleatoria #
-        self.enemigos[0].set_vel(Vector(-1,0))
-        self.enemigos[1].set_vel(Vector(0,-1))
-        self.enemigos[2].set_vel(Vector(1,0))
+        # -> BOMBER <-#  
+        self.bomber = Bomber(Vector(1*scale,1*scale))
+        self.bomber.upgrade_max_bombs()
 
-        #Creacion mapa inicial
+        #-> ENEMIGOS <-#
+        #-> POS INICIAL ENEMIGOS <-# - # ESQUINAS - TODO: Aleatoria #
+        # self.enemigos.append(Bomber(Vector(width-2*scale, 1*scale)))
+        # self.enemigos.append(Bomber(Vector(width-2*scale, height-2*scale)))
+        # self.enemigos.append(Bomber(Vector(1*scale, height-2*scale)))
+        
+        # # VELOCIDAD INICIAL DE ENEMIGOS
+        # self.enemigos[0].set_vel(Vector(-1,0))
+        # self.enemigos[1].set_vel(Vector(0,-1))
+        # self.enemigos[2].set_vel(Vector(1,0))
+
+        #MAPA
         self.generate_map()
 
         # SOMBRAS DE OBJETOS#
@@ -86,7 +99,11 @@ class Controller:
                 obj.set_sombra()
 
         #          Vista           #
-        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber, self.enemigos, self.bloques, self.map, win)
+        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber, self.enemigos, self.bloques, self.map)
+        
+        #Obtención de Sprites de Explosiones
+        self.sprites = get_explosion_sprites()
+        self.bomb_sound = get_explosion_sounds()
         self.run = True
     
 
@@ -106,7 +123,7 @@ class Controller:
                 if event.key == K_s:
                     self.run = False
                 if event.key == K_a:
-                    pos_bomba = self.bomber.release_bomb()
+                    pos_bomba = self.bomber.release_bomb(self.sprites,self.bomb_sound)
                     if pos_bomba:
                         self.map[int((pos_bomba.x + 25)/50)][int((pos_bomba.y + 25)/50)] = 9
 
@@ -139,26 +156,26 @@ class Controller:
         self.bomber.set_vel(Vector(0,0))
 
         if keys[pygame.K_RIGHT]:
-            if self.map[bomber_x + 1][bomber_y] == 0:
+            if self.map[bomber_x + 1][bomber_y] == 0 or (self.bomber.pos.x + 25)%50 < 35:
                 self.bomber.set_vel(Vector(1,0))
 
         elif keys[pygame.K_LEFT]:
-            if self.map[bomber_x - 1][bomber_y] == 0:
+            if self.map[bomber_x - 1][bomber_y] == 0 or (self.bomber.pos.x + 25)%50 > 15:
                 self.bomber.set_vel(Vector(-1,0))
 
         elif keys[pygame.K_UP]:
-            if self.map[bomber_x ][bomber_y + 1] == 0:
+            if self.map[bomber_x ][bomber_y + 1] == 0 or (self.bomber.pos.y + 25)%50 < 35:
                 self.bomber.set_vel(Vector(0,1))
 
         elif keys[pygame.K_DOWN]:
-            if self.map[bomber_x ][bomber_y - 1] == 0:
+            if self.map[bomber_x ][bomber_y - 1] == 0 or (self.bomber.pos.y + 25)%50 > 15:
                 self.bomber.set_vel(Vector(0,-1))
 
     def bombs_bots(self):
         for bot in self.enemigos:
             bomb = np.random.choice(np.arange(0, 2), p=[0.95,0.05])
             if bomb == 1:
-                pos_bomba = bot.release_bomb()
+                pos_bomba = bot.release_bomb(self.sprites,self.bomb_sound)
                 if pos_bomba:
                     self.map[int((pos_bomba.x + 25)/50)][int((pos_bomba.y + 25)/50)] = 9
 
@@ -205,7 +222,11 @@ class Controller:
             
             else:
                 des = np.random.choice(np.arange(0, 4), p=[0.9,0.045,0.045,0.01])
-                if des == 0 and self.map[bot_x + bot.vel.x][bot_y + bot.vel.y] == 0:
+                
+
+                #mov_des = (((bot.pos.x + 25)%50 <35)  and ((bot.pos.x + 25)%50 > 15 )) and (((bot.pos.y + 25)%50 <35)  and ((bot.pos.y + 25)%50 > 15 ))
+                mov_des =False
+                if des == 0 and self.map[bot_x + bot.vel.x][bot_y + bot.vel.y] == 0: 
                     pass
 
                 elif des == 1 and self.map[bot_x + bot.vel.y][bot_y + bot.vel.x] == 0:
@@ -242,6 +263,7 @@ class Controller:
 
         # Explosiones!
         for bomb in self.explosiones:
+            #self.bombas_explotadas.append(Explosion(image= self.sprites, pos=Vector(bomb.x, bomb.y)))
             bomb_pos = (int((bomb.x+25)/50),int((bomb.y+25)/50))
             rang_explosion.append(bomb_pos)
 
@@ -346,4 +368,3 @@ class Controller:
 
         for bomb in self.active_bombs:
             self.map[int((bomb.x + 25)/50)][int((bomb.y + 25)/50)] = 9
-

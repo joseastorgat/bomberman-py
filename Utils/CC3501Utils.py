@@ -8,16 +8,16 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from pygame.locals import *
 
-
 # funcion para inicializar pygame y opengl en 2D
 def init(ancho, alto, titulo):
     # inicializar pygame
     pygame.init()
-    screen = pygame.display.set_mode((ancho, alto), OPENGL | DOUBLEBUF)
+    screen = pygame.display.set_mode((ancho, alto), pygame.OPENGLBLIT | DOUBLEBUF)
     pygame.display.set_caption(titulo)
 
     # inicializar opengl
     glViewport(0, 0, ancho, alto)
+    glEnable(GL_TEXTURE_2D)
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     gluOrtho2D(0.0, ancho, 0.0, alto)
@@ -154,4 +154,3 @@ class Figura:
 
     def figura(self):
         pass
-
