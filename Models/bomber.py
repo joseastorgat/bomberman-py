@@ -19,10 +19,10 @@ class Bomber(Figura):
         self.active_bombs = []
         self.n_active_bombs = 0
         self.exploded_bombs = []
-        
+        self.figura = self.Robot    
         super().__init__(pos, rgb)
 
-    def figura(self):
+    def circle(self):
 
         radio = 20
         paso = 20
@@ -82,4 +82,76 @@ class Bomber(Figura):
 
         #print(poses, active)
         return poses, active
+
+
+    def Robot(self):
+
+
+        paso = 10
+        radio = 15
+
+        #Cabeza
+        glBegin(GL_TRIANGLE_FAN)
+        glColor3f(0.9, 0.9, 0.9)
+        glVertex2f(25, 40);# center of circle
+        for i in range(paso+1):
+            glVertex2f(25 + radio*math.cos(i*2*math.pi/paso),40 + radio*math.sin(i*2*math.pi/paso) )
+        glEnd()
+
+
+        glBegin(GL_QUADS)
+
+        #solido
+
+
+        # #Cabeza
+        # glVertex2f(15,35)
+        # glVertex2f(15,55)
+        # glVertex2f(35,55)
+        # glVertex2f(35,35)
+
+
+        #Torso
+        glColor3f(1.0, 1.0, 1.0)
+        glVertex2f(22,0)
+        glVertex2f(22,40)
+        glVertex2f(28,40)
+        glVertex2f(28,0)
+
+        #BRAZOS
+        glVertex2f(10,20)
+        glVertex2f(10,25)
+        glVertex2f(40,25)
+        glVertex2f(40,20)
+
+        #Rueda
+        glColor3f(0.0, 0.0, 0.0)
+
+        glVertex2f(10,0)
+        glVertex2f(10,10)
+        glVertex2f(20,10)
+        glVertex2f(20,0)
+
+        glVertex2f(30,0)
+        glVertex2f(30,10)
+        glVertex2f(40,10)
+        glVertex2f(40,0)
+
+
+        #Ojos
+
+        glVertex2f(18,38)
+        glVertex2f(18,43)
+        glVertex2f(22,43)
+        glVertex2f(22,38)
+
+        glVertex2f(28,38)
+        glVertex2f(28,43)
+        glVertex2f(32,43)
+        glVertex2f(32,38)
+
+
+
+        glEnd()
+
 
