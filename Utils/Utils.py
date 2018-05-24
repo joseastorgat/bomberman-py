@@ -16,5 +16,6 @@ def get_explosion_sprites():
 
 def get_explosion_sounds():
     sound = pygame.mixer.Sound(os.path.join("Resources/explosion/explosion.ogg"))
-    sound.set_volume(0.5)
+    sound.set_volume(1.0)
     return sound
+

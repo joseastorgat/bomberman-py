@@ -4,7 +4,7 @@ import numpy as np
 import math
 import random
 import os
-
+import time
 #Vista
 from View import vista
 
@@ -13,15 +13,19 @@ from Utils.CC3501Utils import *
 from Utils.Utils import *
 
 #Modelos
-from Models.fondo    import Fondo
-from Models.ladrillo import Ladrillo
-from Models.bomber   import Bomber
-from Models.bomba    import Bomba
-from Models.bloque   import Bloque
-from Models.explosion import Explosion
+from Models.bonus     import Bonus
+from Models.fondo     import Fondo
+from Models.bomba     import Bomba
+from Models.bloque    import Bloque
+from Models.bomber    import Bomber
+from Models.ladrillo  import Ladrillo
+# from Models.salida    import Salida
+
+
+
 
 class Controller:
-    def __init__(self, width, height, scale = 50):
+    def __init__(self, width, height, scale = 50, nenemigos=3, multiplayer=False):
 
         """
         Condiciones Iniciales del Mundo:
@@ -35,6 +39,7 @@ class Controller:
                 0
 
         """
+        self.game_over = False
 
         #Iniciar Pygame
         win = init(width, height, "Robots")
@@ -71,25 +76,6 @@ class Controller:
         for pos in pos_bloques:
             self.bloques.append(Bloque(pos))
 
-        #######################################
-        #####        PERSONAJES           #####
-        #######################################    
-        
-        # -> BOMBER <-#  
-        self.bomber = Bomber(Vector(1*scale,1*scale))
-        self.bomber.upgrade_max_bombs()
-
-        #-> ENEMIGOS <-#
-        #-> POS INICIAL ENEMIGOS <-# - # ESQUINAS - TODO: Aleatoria #
-        # self.enemigos.append(Bomber(Vector(width-2*scale, 1*scale)))
-        # self.enemigos.append(Bomber(Vector(width-2*scale, height-2*scale)))
-        # self.enemigos.append(Bomber(Vector(1*scale, height-2*scale)))
-        
-        # # VELOCIDAD INICIAL DE ENEMIGOS
-        # self.enemigos[0].set_vel(Vector(-1,0))
-        # self.enemigos[1].set_vel(Vector(0,-1))
-        # self.enemigos[2].set_vel(Vector(1,0))
-
         #MAPA
         self.generate_map()
 
@@ -98,12 +84,40 @@ class Controller:
             if self.map[int(obj.pos.x/50)][int(obj.pos.y/50-1)] == 0:
                 obj.set_sombra()
 
-        #          Vista           #
-        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber, self.enemigos, self.bloques, self.map)
+
+
+        #######################################
+        #####        PERSONAJES           #####
+        #######################################    
         
+        # -> BOMBER <-#  
+        self.bomber = Bomber(Vector(1*scale,1*scale))
+
+        #-> ENEMIGOS <-#
+        #-> POS INICIAL ENEMIGOS <-# - # ESQUINAS - TODO: Aleatoria #
+        self.enemigos = []
+        self.set_enemigos()
+        
+        #######################################
+        #####        BONUS                #####
+        #######################################    
+        self.bonus = []
+        self.set_bonus(pos_bloques, 4)
+
+
+        #######################################
+        #####       Vista                 #####
+        #######################################    
+        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber, self.enemigos, self.bloques, self.bonus)
+        
+        #Musica y Sprites#
         #Obtención de Sprites de Explosiones
         self.sprites = get_explosion_sprites()
         self.bomb_sound = get_explosion_sounds()
+
+        pygame.mixer.music.load("Resources/maintheme.mp3")
+        pygame.mixer.music.play(-1, 0.0)
+        pygame.mixer.music.set_volume(0.25)
         self.run = True
     
 
@@ -119,21 +133,24 @@ class Controller:
         for event in pygame.event.get():
             if event.type == QUIT:  # cerrar ventana
                 self.run = False
+            
             if event.type == KEYDOWN:
+            
                 if event.key == K_s:
                     self.run = False
+            
                 if event.key == K_a:
                     pos_bomba = self.bomber.release_bomb(self.sprites,self.bomb_sound)
                     if pos_bomba:
                         self.map[int((pos_bomba.x + 25)/50)][int((pos_bomba.y + 25)/50)] = 9
 
-        # Bombas de Bots
+        # Colocar Bombas de Bots
         self.bombs_bots()
 
-        #Manejo de Bombas ( Explosiones y Activas )
+        #Manejo de Bombas (Explosiones y Activas)
         self.explotar_bombas()
         
-        # Mover Personaje
+        # Mover Personajes
         self.mover_personaje(keys) 
         self.bomber.move()
 
@@ -141,9 +158,17 @@ class Controller:
         self.move_bots()
         for bot in self.enemigos:
             bot.move()
-        
+
+        # Asignar y Borrar Bonus
+        self.manage_bonus()
+
         # Dibujar Todo
-        self.vista.dibujar()
+        if not self.game_over:
+            self.vista.dibujar()
+        else:
+            self.vista.GameOver()
+            time.sleep(10)
+            self.run=False
 
         return self.run
 
@@ -298,15 +323,14 @@ class Controller:
 
         # MATAR PERSONAJE -> GAME OVER
         if (int((self.bomber.pos.x+25)/50),int((self.bomber.pos.y+25)/50)) in rang_explosion:
-            del self.bomber
+            #del self.bomber
             print("Game Over")
-
+            self.game_over = True
 
         # AÑADIR NUEVAS SOMBRAS GENERADAS
         for cuad in self.bloques + self.ladrillos:
             if cuad.pos in sombras:
                 cuad.set_sombra()        
-
 
     def get_ladrillos_pos(self):
         """
@@ -332,7 +356,7 @@ class Controller:
         
         return pos_ladrillos
 
-    def get_bloques_pos(self,pos_ladrillos, nbloques = 4):
+    def get_bloques_pos(self, pos_ladrillos, nbloques = 4):
         """
         Entrega lista de bloques, correspondiente a la distribución incicial de bloques en el mapa
         Estas posiciones son aleatorias, sin embargo hay localizaciones donde no pueden existir estos bloques
@@ -368,3 +392,47 @@ class Controller:
 
         for bomb in self.active_bombs:
             self.map[int((bomb.x + 25)/50)][int((bomb.y + 25)/50)] = 9
+
+    def manage_bonus(self):
+        bombers = [self.bomber] + self.enemigos
+        for bonus in self.bonus:
+            for bomber in bombers:
+                if abs(bonus.pos.x - bomber.pos.x)<20 and abs(bonus.pos.y - bomber.pos.y)<20:
+                    if bonus.tipo == 'speed':
+                        bomber.upgrade_speed() 
+                    elif bonus.tipo == 'fire':
+                        bomber.upgrade_max_bombs()
+                    self.bonus.remove(bonus)
+                    del bonus
+                else:
+                    continue
+
+
+    def set_bonus(self,  pos_bloques, nbonus=4):
+        bonus_pos = []
+        nladrillos = len(pos_bloques)
+        i=0
+        while i<nbonus:
+            j = random.randint(1, nladrillos-1)
+            pos = Vector(pos_bloques[j].x,  pos_bloques[j].y)
+            if not pos in bonus_pos:
+                i+=1
+                bonus_pos.append(pos)
+
+        for pos in bonus_pos:
+            tipo = random.randint(0,1)
+            tipo = 'fire' if tipo==1 else 'speed'
+            self.bonus.append(Bonus(pos, tipo))
+
+
+    def set_enemigos(self):
+    
+        self.enemigos.append(Bomber(Vector((self._w-2)*self.scale, 1*self.scale)))
+        self.enemigos.append(Bomber(Vector((self._w-2)*self.scale, (self._h-2)*self.scale)))
+        self.enemigos.append(Bomber(Vector(1*self.scale, (self._h-2)*self.scale)))
+        
+        # VELOCIDAD INICIAL DE ENEMIGOS
+        self.enemigos[0].set_vel(Vector(-1,0))
+        self.enemigos[1].set_vel(Vector(0,-1))
+        self.enemigos[2].set_vel(Vector(1,0))
+

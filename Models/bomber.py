@@ -2,7 +2,6 @@ import os
 
 from Utils.CC3501Utils import *
 import math
-import copy
 
 from Models.bomba import Bomba
 
@@ -11,9 +10,9 @@ from Models.bomba import Bomba
 ####################################################
 
 class Bomber(Figura):
-    def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), vel = Vector(0,0), rapidez = 5, max_bombs=1):
+    def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), vel = Vector(0,0), speed = 5, max_bombs=1):
         self.max_bombs = max_bombs
-        self.rapidez = rapidez
+        self.speed = speed
         
         self.vel = vel
         self.active_bombs = []
@@ -22,27 +21,24 @@ class Bomber(Figura):
         self.figura = self.Robot    
         super().__init__(pos, rgb)
 
-    def circle(self):
-
-        radio = 20
-        paso = 20
-        x = 25
-        y = 25
-    
-        glBegin(GL_TRIANGLE_FAN)
-        glColor3f(0, 0, 0)
-        glVertex2f(x, y);# center of circle
-        for i in range(paso+1):
-            glVertex2f(x + radio*math.cos(i*2*math.pi/paso),y + radio*math.sin(i*2*math.pi/paso) )
-        glEnd()
-
 
     def move(self):
-        self.pos.x += self.vel.x*self.rapidez 
-        self.pos.y += self.vel.y*self.rapidez
+        self.pos.x += self.vel.x*self.speed 
+        self.pos.y += self.vel.y*self.speed
 
     def set_vel(self,vel = Vector(0,1)):
         self.vel = vel
+
+    def upgrade_speed(self):
+        self.speed +=5
+        print("upgrade_speed")
+
+    def downgrade_speed(self):
+        if speed ==5:
+            self.speed =3
+        else:
+            self.speed -=5
+
 
     def upgrade_max_bombs(self):
         self.max_bombs+=1
@@ -67,8 +63,6 @@ class Bomber(Figura):
 
             if bomb.explode():
                 self.n_active_bombs-=1
-                explode_pos = Vector(bomb.pos.x,bomb.pos.y)
-                poses.append(explode_pos)
                 self.exploded_bombs.append(bomb) # Bomba se elimina de bombas activas
                 self.active_bombs.remove(bomb) #
             else:
@@ -76,6 +70,9 @@ class Bomber(Figura):
 
         for bomb in self.exploded_bombs:
             bomb.crear()
+            explode_pos = Vector(bomb.pos.x,bomb.pos.y)
+            poses.append(explode_pos)
+
             if bomb.finished:
                 self.exploded_bombs.remove(bomb)
                 del bomb
@@ -137,9 +134,7 @@ class Bomber(Figura):
         glVertex2f(40,10)
         glVertex2f(40,0)
 
-
         #Ojos
-
         glVertex2f(18,38)
         glVertex2f(18,43)
         glVertex2f(22,43)
@@ -149,9 +144,4 @@ class Bomber(Figura):
         glVertex2f(28,43)
         glVertex2f(32,43)
         glVertex2f(32,38)
-
-
-
         glEnd()
-
-
