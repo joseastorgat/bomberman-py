@@ -2,21 +2,22 @@ import os
 
 from Utils.CC3501Utils import *
 import math
-import time
-
+import pygame.time as time
 ####################################################
 # Clase Bomba
 ####################################################
 
 class Bomba(Figura):
     def __init__(self, image, sound, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0)):
-        self.init_time = time.time()
+        self.init_time = time.get_ticks()
         self.figura = self.Dinamita
         self.exploded = False
         self.texture = glGenTextures(1)
         self.finished = False
         self.sprites = image
         self.sound = sound
+
+        self._timeout = 1750
         super().__init__(pos, rgb)
 
     def Dinamita(self):
@@ -80,7 +81,7 @@ class Bomba(Figura):
         #mecha*4
         glColor3f(167.0/255.0, 135.0/255.0, 0.0)
 
-        aux = 35 + (10-int(3*(time.time() - self.init_time)))
+        aux = 35 + (10-int(3*(time.get_ticks() - self.init_time)/1000))
         glVertex2f(14,35)
         glVertex2f(12,35)
         glVertex2f(12,aux)
@@ -142,7 +143,7 @@ class Bomba(Figura):
 
     def Explosion(self):
 
-        i = int((time.time() - self.init_time - 3.0)/0.1)
+        i = abs(int( (time.get_ticks() - self.init_time - self._timeout)/100))
         if i>6:
             i=6
             self.finished=True
@@ -261,9 +262,10 @@ class Bomba(Figura):
         self.width = tex_width
         self.height = tex_height
 
-    def explode(self, timeout = 3.0):
+    def explode(self, timeout = 2.0):
         self.crear()
-        if time.time() - self.init_time> timeout:
+        timeout =timeout*1000
+        if time.get_ticks() - self.init_time > timeout:
             self.sound.play()
             self.figura = self.Explosion
             self.exploded = True

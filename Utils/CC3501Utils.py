@@ -6,11 +6,15 @@ from math import *
 import pygame
 from OpenGL.GL import *
 from OpenGL.GLU import *
+from OpenGL.GLUT import *
+
 from pygame.locals import *
 
 # funcion para inicializar pygame y opengl en 2D
 def init(ancho, alto, titulo):
     # inicializar pygame
+    #glutInit()
+
     pygame.init()
     screen = pygame.display.set_mode((ancho, alto), pygame.OPENGLBLIT | DOUBLEBUF)
     pygame.display.set_caption(titulo)

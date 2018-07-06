@@ -1,16 +1,17 @@
 from OpenGL.GL import *
+from OpenGL.GLUT import *
 from Utils.CC3501Utils import *
 import os
-import time
 
 class Vista:
-    def __init__(self, fondo, ladrillos, bomber, enemigos, bloques, bonus):
+    def __init__(self, fondo, ladrillos, bomber, enemigos, bloques, bonus, puerta):
         self.fondo     = fondo
         self.bomber    = bomber
         self.enemigos  = enemigos
         self.ladrillos = ladrillos
         self.bloques   = bloques
         self.bonus     = bonus
+        self.puerta    = puerta
 
     def dibujar(self):
         # revisar si es necesario volver a negro la pantalla
@@ -19,6 +20,7 @@ class Vista:
         #glClearColor(color)(0.0/255.0, 120.0/255.0, 0.0/255.0,0.0)
         self.fondo.dibujar()
         
+        self.puerta.dibujar()
         for bonus in self.bonus:
             bonus.dibujar()
 
@@ -49,9 +51,7 @@ class Vista:
 
 
     def GameOver(self):
-
-        time.sleep(2)
-
+        self.dibujar()
         texture = glGenTextures(1)
         font = pygame.font.Font(os.path.join("Resources/Fonts/8bit.ttf"), 50)
         textSurface = font.render("Game Over", True, (255,255,255,255), (0,0,0,0))

@@ -4,8 +4,7 @@ import numpy as np
 import math
 import random
 import os
-import time
-#Vista
+#wait
 from View import vista
 
 #Utils
@@ -19,6 +18,8 @@ from Models.bomba     import Bomba
 from Models.bloque    import Bloque
 from Models.bomber    import Bomber
 from Models.ladrillo  import Ladrillo
+from Models.puerta    import Puerta
+
 # from Models.salida    import Salida
 
 
@@ -42,6 +43,8 @@ class Controller:
         self.game_over = False
 
         #Iniciar Pygame
+        self.width = width
+        self.height = height
         win = init(width, height, "Robots")
         
         #Iniciación de Variables a Usar:
@@ -59,30 +62,16 @@ class Controller:
         #self.bombas_explotadas = []
 
 
-        ############################
-        #      FONDO - BLOQUES     #
-        ############################
+        ############################################
+        #      FONDO - BLOQUES INDESTRUCTIBLES     #
+        ############################################
 
         #FONDO
         self.fondo = Fondo(width=width, height=height)
 
+
         #LADRILLOS
-        pos_ladrillos = self.get_ladrillos_pos()
-        for pos in pos_ladrillos:
-            self.ladrillos.append(Ladrillo(pos=Vector(pos.x,pos.y)))
-
-        #BLOQUES
-        pos_bloques = self.get_bloques_pos(pos_ladrillos) # <- Aleatoria
-        for pos in pos_bloques:
-            self.bloques.append(Bloque(pos))
-
-        #MAPA
-        self.generate_map()
-
-        # SOMBRAS DE OBJETOS#
-        for obj in self.ladrillos + self.bloques:
-            if self.map[int(obj.pos.x/50)][int(obj.pos.y/50-1)] == 0:
-                obj.set_sombra()
+        pos_ladrillos = self.create_ladrillos()
 
 
 
@@ -94,10 +83,34 @@ class Controller:
         self.bomber = Bomber(Vector(1*scale,1*scale))
 
         #-> ENEMIGOS <-#
-        #-> POS INICIAL ENEMIGOS <-# - # ESQUINAS - TODO: Aleatoria #
         self.enemigos = []
-        self.set_enemigos()
+        enemys_pos = self.create_enemys(enemy_type='bomber', n=0, pos_prohibidas=pos_ladrillos)
         
+        
+
+        #############################
+        #   BLOQUES DESTRUCTIBLES   #
+        #############################
+        pos_prohibidas = pos_ladrillos #+ enemy_pos
+        pos_bloques = self.get_bloques_pos(pos_prohibidas=pos_prohibidas) # <- Aleatoria
+        for pos in pos_bloques:
+            self.bloques.append(Bloque(pos))
+
+        
+        j = random.randint(1, len(pos_bloques)-1)
+        self.puerta = Puerta(pos_bloques[j])
+
+
+
+        #MAPA
+        self.generate_map()
+
+        # SOMBRAS DE OBJETOS#
+        for obj in self.ladrillos + self.bloques:
+            if self.map[int(obj.pos.x/50)][int(obj.pos.y/50-1)] == 0:
+                obj.set_sombra()
+
+
         #######################################
         #####        BONUS                #####
         #######################################    
@@ -108,7 +121,7 @@ class Controller:
         #######################################
         #####       Vista                 #####
         #######################################    
-        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber, self.enemigos, self.bloques, self.bonus)
+        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber, self.enemigos, self.bloques, self.bonus, self.puerta)
         
         #Musica y Sprites#
         #Obtención de Sprites de Explosiones
@@ -161,49 +174,111 @@ class Controller:
 
         # Asignar y Borrar Bonus
         self.manage_bonus()
+        self.update_puerta()
 
         # Dibujar Todo
-        if not self.game_over:
-            self.vista.dibujar()
-        else:
+        self.vista.dibujar()
+        if self.game_over:
+            pygame.time.wait(2000)
             self.vista.GameOver()
-            time.sleep(10)
-            self.run=False
-
+            pygame.time.wait(4000)
+            #self.run=False
+            self.__init__(self.width, self.height)
         return self.run
 
 
-    def mover_personaje(self, keys):
 
-        bomber_x = int((self.bomber.pos.x + 25)/50)
-        bomber_y = int((self.bomber.pos.y + 25)/50)
-        self.map[bomber_x,bomber_y] = 4
-        self.bomber.set_vel(Vector(0,0))
+    #Update Mundo
 
-        if keys[pygame.K_RIGHT]:
-            if self.map[bomber_x + 1][bomber_y] == 0 or (self.bomber.pos.x + 25)%50 < 35:
-                self.bomber.set_vel(Vector(1,0))
+    def manage_bonus(self):
+        bombers = [self.bomber] + self.enemigos
+        for bomber in bombers:
+            for bonus in self.bonus:
+                if abs(bonus.pos.x - bomber.pos.x)<20 and abs(bonus.pos.y - bomber.pos.y)<20:
+                    if bonus.tipo == 'speed':
+                        bomber.upgrade_speed() 
+                    elif bonus.tipo == 'fire':
+                        bomber.upgrade_max_bombs()
+                    self.bonus.remove(bonus)
+                    del bonus
+                else:
+                    continue
 
-        elif keys[pygame.K_LEFT]:
-            if self.map[bomber_x - 1][bomber_y] == 0 or (self.bomber.pos.x + 25)%50 > 15:
-                self.bomber.set_vel(Vector(-1,0))
+    def update_puerta(self):
 
-        elif keys[pygame.K_UP]:
-            if self.map[bomber_x ][bomber_y + 1] == 0 or (self.bomber.pos.y + 25)%50 < 35:
-                self.bomber.set_vel(Vector(0,1))
+        if abs(self.bomber.pos.x - self.puerta.pos.x)<10 and abs(self.bomber.pos.y - self.puerta.pos.y)<10:
+            if self.puerta.abrir():
+                self.game_over = True
+        else:
+            self.puerta.cerrar()
 
-        elif keys[pygame.K_DOWN]:
-            if self.map[bomber_x ][bomber_y - 1] == 0 or (self.bomber.pos.y + 25)%50 > 15:
-                self.bomber.set_vel(Vector(0,-1))
 
-    def bombs_bots(self):
+    def explotar_bombas(self):
+        """
+        """
+        #Reiniciar explosiones y bombas activas
+        self.explosiones = []  # Posiciones donde una bomba acaba de explotar
+        self.active_bombs = [] # Posiciones donde hay bombas activas
+        
+        rang_explosion = []
+
+        explosion, active = self.bomber.explode_bombs()
+        self.explosiones+=explosion
+        self.active_bombs+=active
+                
         for bot in self.enemigos:
-            bomb = np.random.choice(np.arange(0, 2), p=[0.95,0.05])
-            if bomb == 1:
-                pos_bomba = bot.release_bomb(self.sprites,self.bomb_sound)
-                if pos_bomba:
-                    self.map[int((pos_bomba.x + 25)/50)][int((pos_bomba.y + 25)/50)] = 9
+            explosion, active = bot.explode_bombs()
+            self.explosiones+=explosion
+            self.active_bombs+=active
 
+        # Explosiones!
+        for bomb in self.explosiones:
+            #self.bombas_explotadas.append(Explosion(image= self.sprites, pos=Vector(bomb.x, bomb.y)))
+            bomb_pos = (int((bomb.x+25)/50),int((bomb.y+25)/50))
+            rang_explosion.append(bomb_pos)
+
+            if self.map[bomb_pos[0]+1][bomb_pos[1]]!=1:
+                rang_explosion.append((bomb_pos[0]+1,bomb_pos[1]))
+
+            if self.map[bomb_pos[0]-1][bomb_pos[1]]!=1:
+                rang_explosion.append((bomb_pos[0]-1,bomb_pos[1]))
+
+            if self.map[bomb_pos[0]][bomb_pos[1]+1]!=1:
+                rang_explosion.append((bomb_pos[0],bomb_pos[1]+1))
+
+            if self.map[bomb_pos[0]][bomb_pos[1]-1]!=1:
+                rang_explosion.append((bomb_pos[0],bomb_pos[1]-1))
+
+        sombras = []
+
+        #DESTRUIR BLOQUES
+        for bloque in self.bloques:
+            if ((bloque.pos.x)/50,(bloque.pos.y)/50) in rang_explosion:
+                sombras.append(Vector((bloque.pos.x), (bloque.pos.y+50)))
+                self.bloques.remove(bloque)
+                del bloque
+            pass
+        
+        # MATAR BOTS
+        for bot in self.enemigos:
+            if ((bot.pos.x+25)/50,(bot.pos.y+25)/50) in rang_explosion:
+                self.enemigos.remove(bot)
+                print("Muere BoT!")
+                del bot
+
+        # MATAR PERSONAJE -> GAME OVER
+        if (int((self.bomber.pos.x+25)/50),int((self.bomber.pos.y+25)/50)) in rang_explosion:
+            #del self.bomber
+            print("Game Over")
+            self.game_over = True
+
+        # AÑADIR NUEVAS SOMBRAS GENERADAS
+        for cuad in self.bloques + self.ladrillos:
+            if cuad.pos in sombras:
+                cuad.set_sombra()        
+
+
+    #Movimiento de Bots
     def move_bots(self):
         """
         Define movimientos aleatorios de los bots.
@@ -268,74 +343,50 @@ class Controller:
 
             self.map[bot_x][bot_y] = 5
 
-    def explotar_bombas(self):
-        """
-        """
-
-        #Reiniciar explosiones y bombas activas
-        self.explosiones = []  # Posiciones donde una bomba acaba de explotar
-        self.active_bombs = [] # Posiciones donde hay bombas activas
-        rang_explosion = []
-
-        explosion, active = self.bomber.explode_bombs()
-        self.explosiones+=explosion
-        self.active_bombs+=active
-                
+    def bombs_bots(self):
         for bot in self.enemigos:
-            explosion, active = bot.explode_bombs()
-            self.explosiones+=explosion
-            self.active_bombs+=active
+            bomb = np.random.choice(np.arange(0, 2), p=[0.95,0.05])
+            if bomb == 1:
+                pos_bomba = bot.release_bomb(self.sprites,self.bomb_sound)
+                if pos_bomba:
+                    self.map[int((pos_bomba.x + 25)/50)][int((pos_bomba.y + 25)/50)] = 9
 
-        # Explosiones!
-        for bomb in self.explosiones:
-            #self.bombas_explotadas.append(Explosion(image= self.sprites, pos=Vector(bomb.x, bomb.y)))
-            bomb_pos = (int((bomb.x+25)/50),int((bomb.y+25)/50))
-            rang_explosion.append(bomb_pos)
+    ###########################
+    #Movimiento de Personajes #
+    ###########################
 
-            if self.map[bomb_pos[0]+1][bomb_pos[1]]!=1:
-                rang_explosion.append((bomb_pos[0]+1,bomb_pos[1]))
+    def mover_personaje(self, keys):
+        bomber_x = int((self.bomber.pos.x + 25)/50)
+        bomber_y = int((self.bomber.pos.y + 25)/50)
+        self.map[bomber_x,bomber_y] = 4
+        self.bomber.set_vel(Vector(0,0))
 
-            if self.map[bomb_pos[0]-1][bomb_pos[1]]!=1:
-                rang_explosion.append((bomb_pos[0]-1,bomb_pos[1]))
+        if keys[pygame.K_RIGHT]:
+            if self.map[bomber_x + 1][bomber_y] == 0 or (self.bomber.pos.x + 25)%50 < 35:
+                self.bomber.set_vel(Vector(1,0))
 
-            if self.map[bomb_pos[0]][bomb_pos[1]+1]!=1:
-                rang_explosion.append((bomb_pos[0],bomb_pos[1]+1))
+        elif keys[pygame.K_LEFT]:
+            if self.map[bomber_x - 1][bomber_y] == 0 or (self.bomber.pos.x + 25)%50 > 15:
+                self.bomber.set_vel(Vector(-1,0))
 
-            if self.map[bomb_pos[0]][bomb_pos[1]-1]!=1:
-                rang_explosion.append((bomb_pos[0],bomb_pos[1]-1))
+        elif keys[pygame.K_UP]:
+            if self.map[bomber_x ][bomber_y + 1] == 0 or (self.bomber.pos.y + 25)%50 < 35:
+                self.bomber.set_vel(Vector(0,1))
 
-        sombras = []
+        elif keys[pygame.K_DOWN]:
+            if self.map[bomber_x ][bomber_y - 1] == 0 or (self.bomber.pos.y + 25)%50 > 15:
+                self.bomber.set_vel(Vector(0,-1))
 
-        #DESTRUIR BLOQUES
-        for bloque in self.bloques:
-            if ((bloque.pos.x)/50,(bloque.pos.y)/50) in rang_explosion:
-                sombras.append(Vector((bloque.pos.x), (bloque.pos.y+50)))
-                self.bloques.remove(bloque)
-                del bloque
-            pass
-        
-        # MATAR BOTS
-        for bot in self.enemigos:
-            if ((bot.pos.x+25)/50,(bot.pos.y+25)/50) in rang_explosion:
-                self.enemigos.remove(bot)
-                print("Muere BoT!")
-                del bot
+    
 
-        # MATAR PERSONAJE -> GAME OVER
-        if (int((self.bomber.pos.x+25)/50),int((self.bomber.pos.y+25)/50)) in rang_explosion:
-            #del self.bomber
-            print("Game Over")
-            self.game_over = True
+    ###########################
+    #    Creación del Mundo   #
+    ###########################
 
-        # AÑADIR NUEVAS SOMBRAS GENERADAS
-        for cuad in self.bloques + self.ladrillos:
-            if cuad.pos in sombras:
-                cuad.set_sombra()        
-
-    def get_ladrillos_pos(self):
+    def create_ladrillos(self):
         """
-        Entrega lista de vectores, correspondiente a la distribución incicial de ladrillos en el mapa
         """
+
         pos_ladrillos = []
         
         #Bordes Izquierdo y Derecho
@@ -353,10 +404,13 @@ class Controller:
             for j in range(1,self._h-1):
                 if i%2==0 and j%2==0:
                     pos_ladrillos.append(Vector(50*i, 50*j))
+
+        for pos in pos_ladrillos:
+            self.ladrillos.append(Ladrillo(pos=pos))
         
         return pos_ladrillos
 
-    def get_bloques_pos(self, pos_ladrillos, nbloques = 4):
+    def get_bloques_pos(self, nbloques = 4, pos_prohibidas = [] ):
         """
         Entrega lista de bloques, correspondiente a la distribución incicial de bloques en el mapa
         Estas posiciones son aleatorias, sin embargo hay localizaciones donde no pueden existir estos bloques
@@ -365,23 +419,20 @@ class Controller:
         max_bloques = int((self._h * self._w - 2*(self._h + self._w -1))/nbloques) #Numeros de bloques que se generaran
         bloques = 0
         pos_bloques = []
-        pos_prohibidas = [Vector(1*50,1*50),Vector(1*50,2*50),Vector(1*50,3*50),
-                        Vector((self._w-2)*50,1*50),Vector((self._w-3)*50,1*50),Vector((self._w-4)*50,1*50),
-                        Vector(2*50,(self._h-2)*50),Vector(3*50,(self._h-2)*50),Vector(4*50,(self._h-2)*50),
-                        Vector((self._w-2)*50,(self._h-2)*50),Vector((self._w-2)*50,(self._h-3)*50),Vector((self._w-2)*50,(self._h-4)*50)]
+        
+        pos_prohibidas += [Vector(1*50,1*50),Vector(1*50,2*50),Vector(1*50,3*50)]
         
         while bloques < max_bloques:
             x = random.randint(1,self._w-2)*50
             y = random.randint(1,self._h-2)*50
             nuevo_bloque = Vector(x,y)
-            if not (nuevo_bloque in pos_prohibidas or nuevo_bloque in pos_bloques or nuevo_bloque in pos_ladrillos):
+            if not (nuevo_bloque in pos_prohibidas + pos_bloques):
                 pos_bloques.append(nuevo_bloque)
                 bloques+=1
         return pos_bloques
 
     def generate_map(self):
         self.map = np.zeros((self._w, self._h))
-
         # Ladrillos indestructibles
         for ladrillo in self.ladrillos:
             self.map[int((ladrillo.pos.x/50)),int((ladrillo.pos.y/50)) ] = 1
@@ -392,21 +443,7 @@ class Controller:
 
         for bomb in self.active_bombs:
             self.map[int((bomb.x + 25)/50)][int((bomb.y + 25)/50)] = 9
-
-    def manage_bonus(self):
-        bombers = [self.bomber] + self.enemigos
-        for bonus in self.bonus:
-            for bomber in bombers:
-                if abs(bonus.pos.x - bomber.pos.x)<20 and abs(bonus.pos.y - bomber.pos.y)<20:
-                    if bonus.tipo == 'speed':
-                        bomber.upgrade_speed() 
-                    elif bonus.tipo == 'fire':
-                        bomber.upgrade_max_bombs()
-                    self.bonus.remove(bonus)
-                    del bonus
-                else:
-                    continue
-
+    
 
     def set_bonus(self,  pos_bloques, nbonus=4):
         bonus_pos = []
@@ -425,14 +462,20 @@ class Controller:
             self.bonus.append(Bonus(pos, tipo))
 
 
-    def set_enemigos(self):
-    
-        self.enemigos.append(Bomber(Vector((self._w-2)*self.scale, 1*self.scale)))
-        self.enemigos.append(Bomber(Vector((self._w-2)*self.scale, (self._h-2)*self.scale)))
-        self.enemigos.append(Bomber(Vector(1*self.scale, (self._h-2)*self.scale)))
+    def create_enemys(self, enemy_type, n, pos_prohibidas=[]):
         
-        # VELOCIDAD INICIAL DE ENEMIGOS
-        self.enemigos[0].set_vel(Vector(-1,0))
-        self.enemigos[1].set_vel(Vector(0,-1))
-        self.enemigos[2].set_vel(Vector(1,0))
+        enemys_type = {'bomber':Bomber, 'ninja':'', 'ghost':''}
+        enemys_pos = []
+        enemy = 0
 
+        while enemy < n:
+            x = random.randint(1,self._w-2)*50
+            y = random.randint(1,self._h-2)*50
+            enemy_pos = Vector(x,y)
+            
+            if not ( enemy_pos in pos_prohibidas):
+                enemys_pos.append(enemy_pos)
+                self.enemigos.append(Bomber(enemy_pos))
+                enemy+=1
+            
+        return enemys_pos
