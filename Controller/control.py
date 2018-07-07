@@ -56,51 +56,38 @@ class Controller:
         self.enemigos  = []
         self.ladrillos = []
         self.bloques   = []
-        
-        self.explosiones  = []
         self.active_bombs = []
-        #self.bombas_explotadas = []
-
-
+        
         ############################################
         #      FONDO - BLOQUES INDESTRUCTIBLES     #
         ############################################
 
         #FONDO
         self.fondo = Fondo(width=width, height=height)
-
-
         #LADRILLOS
         pos_ladrillos = self.create_ladrillos()
-
-
 
         #######################################
         #####        PERSONAJES           #####
         #######################################    
         
         # -> BOMBER <-#  
-        self.bomber = Bomber(Vector(1*scale,1*scale))
+        bomber_pos = Vector(1*scale,1*scale)
+        self.bomber = Bomber(bomber_pos)
 
         #-> ENEMIGOS <-#
         self.enemigos = []
-        enemys_pos = self.create_enemys(enemy_type='bomber', n=0, pos_prohibidas=pos_ladrillos)
-        
-        
+        enemys_pos = self.create_enemys(enemy_type='bomber', n=3, pos_prohibidas=pos_ladrillos)
 
         #############################
         #   BLOQUES DESTRUCTIBLES   #
         #############################
-        pos_prohibidas = pos_ladrillos #+ enemy_pos
+        pos_prohibidas = pos_ladrillos + [bomber_pos]#+ enemy_pos
         pos_bloques = self.get_bloques_pos(pos_prohibidas=pos_prohibidas) # <- Aleatoria
         for pos in pos_bloques:
-            self.bloques.append(Bloque(pos))
-
-        
+            self.bloques.append(Bloque(pos))        
         j = random.randint(1, len(pos_bloques)-1)
         self.puerta = Puerta(pos_bloques[j])
-
-
 
         #MAPA
         self.generate_map()
@@ -128,11 +115,17 @@ class Controller:
         self.sprites = get_explosion_sprites()
         self.bomb_sound = get_explosion_sounds()
 
-        pygame.mixer.music.load("Resources/maintheme.mp3")
+
+        files = os.listdir("Resources/theme")
+        pygame.mixer.music.load("Resources/theme/"+files[random.randint(0, len(files)-1)])
         pygame.mixer.music.play(-1, 0.0)
-        pygame.mixer.music.set_volume(0.25)
+        pygame.mixer.music.set_volume(0.6)
         self.run = True
-    
+
+        #Game Over Music and SOur
+        go_files = os.listdir("Resources/GameOver")    
+        self.go_sound = pygame.mixer.Sound("Resources/GameOver/"+go_files[random.randint(0, len(go_files)-1)])
+
 
     def update(self):
         
@@ -162,31 +155,28 @@ class Controller:
 
         #Manejo de Bombas (Explosiones y Activas)
         self.explotar_bombas()
-        
-        # Mover Personajes
-        self.mover_personaje(keys) 
-        self.bomber.move()
 
         # Mover BOTS
         self.move_bots()
-        for bot in self.enemigos:
-            bot.move()
+        
+        # Mover Personajes
+        self.mover_personaje(keys) 
+
 
         # Asignar y Borrar Bonus
         self.manage_bonus()
         self.update_puerta()
-
         # Dibujar Todo
         self.vista.dibujar()
         if self.game_over:
+            pygame.mixer.music.pause()
+            self.go_sound.play()
             pygame.time.wait(2000)
             self.vista.GameOver()
             pygame.time.wait(4000)
             #self.run=False
             self.__init__(self.width, self.height)
         return self.run
-
-
 
     #Update Mundo
 
@@ -217,37 +207,40 @@ class Controller:
         """
         """
         #Reiniciar explosiones y bombas activas
-        self.explosiones = []  # Posiciones donde una bomba acaba de explotar
+        explosiones = []  # Posiciones donde una bomba acaba de explotar
         self.active_bombs = [] # Posiciones donde hay bombas activas
         
         rang_explosion = []
+        rang_explosion_player = []
 
         explosion, active = self.bomber.explode_bombs()
-        self.explosiones+=explosion
+        explosiones_player = explosion
+        explosiones += explosion
         self.active_bombs+=active
-                
+
         for bot in self.enemigos:
             explosion, active = bot.explode_bombs()
-            self.explosiones+=explosion
+            explosiones+=explosion
             self.active_bombs+=active
 
         # Explosiones!
-        for bomb in self.explosiones:
-            #self.bombas_explotadas.append(Explosion(image= self.sprites, pos=Vector(bomb.x, bomb.y)))
+        for bomb in explosiones:
             bomb_pos = (int((bomb.x+25)/50),int((bomb.y+25)/50))
             rang_explosion.append(bomb_pos)
 
-            if self.map[bomb_pos[0]+1][bomb_pos[1]]!=1:
-                rang_explosion.append((bomb_pos[0]+1,bomb_pos[1]))
+            rang_explosion.append((bomb_pos[0]+1,bomb_pos[1]))
+            rang_explosion.append((bomb_pos[0]-1,bomb_pos[1]))
+            rang_explosion.append((bomb_pos[0],bomb_pos[1]+1))
+            rang_explosion.append((bomb_pos[0],bomb_pos[1]-1))
 
-            if self.map[bomb_pos[0]-1][bomb_pos[1]]!=1:
-                rang_explosion.append((bomb_pos[0]-1,bomb_pos[1]))
+        for bomb in explosiones_player:
+            bomb_pos = (int((bomb.x+25)/50),int((bomb.y+25)/50))
+            rang_explosion_player.append(bomb_pos)
+            rang_explosion_player.append((bomb_pos[0]+1,bomb_pos[1]))
+            rang_explosion_player.append((bomb_pos[0]-1,bomb_pos[1]))
+            rang_explosion_player.append((bomb_pos[0],bomb_pos[1]+1))
+            rang_explosion_player.append((bomb_pos[0],bomb_pos[1]-1))
 
-            if self.map[bomb_pos[0]][bomb_pos[1]+1]!=1:
-                rang_explosion.append((bomb_pos[0],bomb_pos[1]+1))
-
-            if self.map[bomb_pos[0]][bomb_pos[1]-1]!=1:
-                rang_explosion.append((bomb_pos[0],bomb_pos[1]-1))
 
         sombras = []
 
@@ -261,7 +254,7 @@ class Controller:
         
         # MATAR BOTS
         for bot in self.enemigos:
-            if ((bot.pos.x+25)/50,(bot.pos.y+25)/50) in rang_explosion:
+            if ((bot.pos.x+25)/50,(bot.pos.y+25)/50) in rang_explosion_player:
                 self.enemigos.remove(bot)
                 print("Muere BoT!")
                 del bot
@@ -343,9 +336,12 @@ class Controller:
 
             self.map[bot_x][bot_y] = 5
 
+        for bot in self.enemigos:
+            bot.move()
+
     def bombs_bots(self):
         for bot in self.enemigos:
-            bomb = np.random.choice(np.arange(0, 2), p=[0.95,0.05])
+            bomb = np.random.choice(np.arange(0, 2), p=[0.975,0.025])
             if bomb == 1:
                 pos_bomba = bot.release_bomb(self.sprites,self.bomb_sound)
                 if pos_bomba:
@@ -358,8 +354,9 @@ class Controller:
     def mover_personaje(self, keys):
         bomber_x = int((self.bomber.pos.x + 25)/50)
         bomber_y = int((self.bomber.pos.y + 25)/50)
-        self.map[bomber_x,bomber_y] = 4
         self.bomber.set_vel(Vector(0,0))
+
+        self.map[bomber_x, bomber_y] = 4
 
         if keys[pygame.K_RIGHT]:
             if self.map[bomber_x + 1][bomber_y] == 0 or (self.bomber.pos.x + 25)%50 < 35:
@@ -377,7 +374,12 @@ class Controller:
             if self.map[bomber_x ][bomber_y - 1] == 0 or (self.bomber.pos.y + 25)%50 > 15:
                 self.bomber.set_vel(Vector(0,-1))
 
-    
+        for enemy in self.enemigos:
+            if abs(enemy.pos.x - self.bomber.pos.x)<20 and abs(enemy.pos.y - self.bomber.pos.y)<20:
+                self.game_over = True
+
+        self.bomber.move()
+        
 
     ###########################
     #    Creación del Mundo   #
@@ -475,7 +477,7 @@ class Controller:
             
             if not ( enemy_pos in pos_prohibidas):
                 enemys_pos.append(enemy_pos)
-                self.enemigos.append(Bomber(enemy_pos))
+                self.enemigos.append(Bomber(enemy_pos, speed=3))
                 enemy+=1
             
         return enemys_pos

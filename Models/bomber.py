@@ -10,6 +10,13 @@ from Models.bomba import Bomba
 ####################################################
 
 class Bomber(Figura):
+    _type = "bomber"
+
+    _hero = {"cabeza":[], "torso":[], "pantalones":[], "ojos":[], "zapatos":[], "bandana":[], "piel":[]}
+    _enemy = {"cabeza":[], "torso":[], "pantalones":[], "ojos":[], "zapatos":[], "bandana":[], "piel":[]}
+    _burned = {"cabeza":[], "torso":[], "pantalones":[], "ojos":[], "zapatos":[], "bandana":[], "piel":[]}
+    _color_scheme = {"heroe": _hero  , "enemy": _enemy}
+
     def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0), vel = Vector(0,0), speed = 5, max_bombs=1):
         self.max_bombs = max_bombs
         self.speed = speed
@@ -30,7 +37,7 @@ class Bomber(Figura):
         self.vel = vel
 
     def upgrade_speed(self):
-        self.speed +=5
+        self.speed = self.speed * 1.5
         print("upgrade_speed")
 
     def downgrade_speed(self):
@@ -85,63 +92,131 @@ class Bomber(Figura):
 
 
         paso = 10
-        radio = 15
+        radio = 13
 
         #Cabeza
         glBegin(GL_TRIANGLE_FAN)
-        glColor3f(0.9, 0.9, 0.9)
-        glVertex2f(25, 40);# center of circle
+        glColor3f(0, 0, 0)
+        glVertex2f(25, 45);# center of circle
         for i in range(paso+1):
-            glVertex2f(25 + radio*math.cos(i*2*math.pi/paso),40 + radio*math.sin(i*2*math.pi/paso) )
+            glVertex2f(25 + radio*math.cos(i*2*math.pi/paso),45 + radio*math.sin(i*2*math.pi/paso) )
         glEnd()
 
 
         glBegin(GL_QUADS)
-
-        #solido
-
-
-        # #Cabeza
-        # glVertex2f(15,35)
-        # glVertex2f(15,55)
-        # glVertex2f(35,55)
-        # glVertex2f(35,35)
-
+        #Cuello
+        glColor3f(0.0, 0.0, 0.0)
+        glVertex2f(28,40)
+        glVertex2f(28,30)
+        glVertex2f(22,30)
+        glVertex2f(22,40)
 
         #Torso
-        glColor3f(1.0, 1.0, 1.0)
-        glVertex2f(22,0)
-        glVertex2f(22,40)
-        glVertex2f(28,40)
-        glVertex2f(28,0)
+        glVertex2f(30,30)
+        glVertex2f(30,20)
+        glVertex2f(20,20)
+        glVertex2f(20,30)
+
 
         #BRAZOS
-        glVertex2f(10,20)
-        glVertex2f(10,25)
-        glVertex2f(40,25)
+        glVertex2f(30,30)
         glVertex2f(40,20)
+        glVertex2f(37,17)
+        glVertex2f(30,25)
 
-        #Rueda
+        glVertex2f(20,30)
+        glVertex2f(20,25)
+        glVertex2f(13,17)   
+        glVertex2f(10,20)
+
         glColor3f(0.0, 0.0, 0.0)
 
-        glVertex2f(10,0)
-        glVertex2f(10,10)
+        #PIERNAS
+
+        glVertex2f(30,20)
+        glVertex2f(30,15)
+        glVertex2f(20,15)
+        glVertex2f(20,20)
+
+        #Pierna Izquierda
+        glVertex2f(25,15)
         glVertex2f(20,10)
+        glVertex2f(15,10)
+        glVertex2f(20,15)
+
+        glVertex2f(20,10)
+        glVertex2f(20,5)
+        glVertex2f(15,5)
+        glVertex2f(15,10)
+
+        #Pierna Derecha
+        glVertex2f(25,15)
+        glVertex2f(30,15)
+        glVertex2f(35,10)
+        glVertex2f(30,10)
+
+        glVertex2f(35,10)
+        glVertex2f(35,5)
+        glVertex2f(30,5)
+        glVertex2f(30,10)
+
+        glColor3f(0.0, 0.0, 0.0)
+        #Zapatos
+
+
+        glVertex2f(10,0)
+        glVertex2f(15,5)
+        glVertex2f(20,5)
         glVertex2f(20,0)
 
-        glVertex2f(30,0)
-        glVertex2f(30,10)
-        glVertex2f(40,10)
+
         glVertex2f(40,0)
+        glVertex2f(30,0)
+        glVertex2f(30,5)
+        glVertex2f(35,5)
 
-        #Ojos
-        glVertex2f(18,38)
-        glVertex2f(18,43)
-        glVertex2f(22,43)
-        glVertex2f(22,38)
+        
 
-        glVertex2f(28,38)
-        glVertex2f(28,43)
-        glVertex2f(32,43)
-        glVertex2f(32,38)
+        #BAndana
+        
+        glColor3f(1.0, 1.0, 1.0)
+        
+
+        glVertex2f(13,43)
+        glVertex2f(13,47)
+        glVertex2f(37,47)
+        glVertex2f(37,43)
+
+
+
+            #Ojos
+        glColor3f(0.0, 0.0, 0.0)
+        
+        glVertex2f(18,42)
+        glVertex2f(18,48)
+        glVertex2f(22,48)
+        glVertex2f(22,42)
+
+        glVertex2f(28,42)
+        glVertex2f(28,48)
+        glVertex2f(32,48)
+        glVertex2f(32,42)
+        
+
+        glEnd()
+
+
+
+
+        glBegin(GL_TRIANGLES)
+
+        glVertex2f(36,45)
+        glVertex2f(40,55)
+        glVertex2f(43,50)
+
+
+        glVertex2f(36,45)
+        glVertex2f(40,40)
+        glVertex2f(43,45)
+
         glEnd()
