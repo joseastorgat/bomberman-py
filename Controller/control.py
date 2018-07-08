@@ -4,6 +4,7 @@ import numpy as np
 import math
 import random
 import os
+import yaml
 #wait
 from View import vista
 
@@ -17,8 +18,11 @@ from Models.fondo     import Fondo
 from Models.bomba     import Bomba
 from Models.bloque    import Bloque
 from Models.bomber    import Bomber
+from Models.bomber    import Ninja
 from Models.ladrillo  import Ladrillo
 from Models.puerta    import Puerta
+from Models.tortuga   import Tortuga
+from Models.tortuga   import Humanoide
 
 # from Models.salida    import Salida
 
@@ -26,7 +30,7 @@ from Models.puerta    import Puerta
 
 
 class Controller:
-    def __init__(self, width, height, scale = 50, nenemigos=3, multiplayer=False):
+    def __init__(self, width, height, scale = 50, level = 0, multiplayer=False):
 
         """
         Condiciones Iniciales del Mundo:
@@ -40,18 +44,34 @@ class Controller:
                 0
 
         """
-        self.game_over = False
 
         #Iniciar Pygame
-        self.width = width
-        self.height = height
-        win = init(width, height, "Robots")
+
+
+        try:
+            with open("Config/lvl"+str(level%4)+".yaml","r") as stream:
+                self.params = yaml.load(stream)
+    
+        except Exception as e:
+            print("ERROR: No se pudo cargar el archivo de configuración del nivel ")
+            raise e
+
+        self.width = self.params["win_width"]
+        self.height = self.params["win_height"]
+        
+
+        self.level=level
+        win = init(self.width, self.height, "Ninja!")
         
         #Iniciación de Variables a Usar:
         self.scale = scale
-        self._w = int( math.ceil(float(width)/float(self.scale)))
-        self._h = int( math.ceil(float(height)/float(self.scale)))
+        self._w = int( math.ceil(float(self.width)/float(self.scale)))
+        self._h = int( math.ceil(float(self.height)/float(self.scale)))
         
+        self.run = True
+        self.game_over = False
+        self.level_passed = False
+
 
         self.enemigos  = []
         self.ladrillos = []
@@ -63,7 +83,8 @@ class Controller:
         ############################################
 
         #FONDO
-        self.fondo = Fondo(width=width, height=height)
+        self.fondo = Fondo(width=self.width, height=self.height, bgcolor = self.params["floor_color"])
+        
         #LADRILLOS
         pos_ladrillos = self.create_ladrillos()
 
@@ -72,20 +93,24 @@ class Controller:
         #######################################    
         
         # -> BOMBER <-#  
-        bomber_pos = Vector(1*scale,1*scale)
-        self.bomber = Bomber(bomber_pos)
+        bomber_pos = Vector(self.params["bomber_initial_pose"][0]*scale,self.params["bomber_initial_pose"][1]*scale)
+        self.bomber = Bomber(bomber_pos, speed= self.params["bomber_initial_speed"], max_bombs=self.params["bomber_initial_bombs"] )#, btype="heroe")
 
         #-> ENEMIGOS <-#
         self.enemigos = []
-        enemys_pos = self.create_enemys(enemy_type='bomber', n=3, pos_prohibidas=pos_ladrillos)
+        self.bots_can_bomb = self.params["bots_can_bomb"]
+
+        pos_prohibidas = pos_ladrillos + [bomber_pos]#+ enemy_pos
+        enemys_pos = self.create_enemys(enemy_type='bomber', n1=self.params["n_ninjas"], n2=self.params["n_tortuga"], n3=self.params["n_tortuga_humanoide"], pos_prohibidas=pos_prohibidas)
+
+        
 
         #############################
         #   BLOQUES DESTRUCTIBLES   #
         #############################
-        pos_prohibidas = pos_ladrillos + [bomber_pos]#+ enemy_pos
-        pos_bloques = self.get_bloques_pos(pos_prohibidas=pos_prohibidas) # <- Aleatoria
-        for pos in pos_bloques:
-            self.bloques.append(Bloque(pos))        
+        
+        pos_bloques = self.create_bloques(pos_prohibidas=pos_prohibidas, nbloques=self.params["n_bloques"]) # <- Aleatoria
+                
         j = random.randint(1, len(pos_bloques)-1)
         self.puerta = Puerta(pos_bloques[j])
 
@@ -102,25 +127,28 @@ class Controller:
         #####        BONUS                #####
         #######################################    
         self.bonus = []
-        self.set_bonus(pos_bloques, 4)
+        self.create_bonus(pos_bloques, self.params["n_bonus"])
 
 
         #######################################
         #####       Vista                 #####
         #######################################    
-        self.vista = vista.Vista(self.fondo, self.ladrillos, self.bomber, self.enemigos, self.bloques, self.bonus, self.puerta)
-        
+        self.vista = vista.Vista(self.width, self.height, self.fondo, self.ladrillos, self.bomber, self.enemigos, self.bloques, self.bonus, self.puerta)
+        self.vista.dibujar()
+        self.vista.Level(level)
+        pygame.time.wait(500)
         #Musica y Sprites#
         #Obtención de Sprites de Explosiones
+
+        #######################################
+        ####           RESOURCES          #####
+        #######################################
         self.sprites = get_explosion_sprites()
         self.bomb_sound = get_explosion_sounds()
-
-
         files = os.listdir("Resources/theme")
         pygame.mixer.music.load("Resources/theme/"+files[random.randint(0, len(files)-1)])
         pygame.mixer.music.play(-1, 0.0)
         pygame.mixer.music.set_volume(0.6)
-        self.run = True
 
         #Game Over Music and SOur
         go_files = os.listdir("Resources/GameOver")    
@@ -151,7 +179,8 @@ class Controller:
                         self.map[int((pos_bomba.x + 25)/50)][int((pos_bomba.y + 25)/50)] = 9
 
         # Colocar Bombas de Bots
-        self.bombs_bots()
+        if self.bots_can_bomb:
+            self.bombs_bots()
 
         #Manejo de Bombas (Explosiones y Activas)
         self.explotar_bombas()
@@ -168,14 +197,26 @@ class Controller:
         self.update_puerta()
         # Dibujar Todo
         self.vista.dibujar()
+        
+
         if self.game_over:
+            pygame.time.wait(250)
             pygame.mixer.music.pause()
+            pygame.time.wait(250)
             self.go_sound.play()
-            pygame.time.wait(2000)
+            pygame.time.wait(500)
             self.vista.GameOver()
             pygame.time.wait(4000)
-            #self.run=False
             self.__init__(self.width, self.height)
+        
+        elif self.level_passed:
+            pygame.time.wait(250)
+            # pygame.mixer.music.pause()
+            self.go_sound.play()
+            pygame.time.wait(500)
+            self.vista.LevelPassed()
+            pygame.time.wait(4000)
+            self.__init__(self.width, self.height, level=self.level+1)
         return self.run
 
     #Update Mundo
@@ -196,9 +237,9 @@ class Controller:
 
     def update_puerta(self):
 
-        if abs(self.bomber.pos.x - self.puerta.pos.x)<10 and abs(self.bomber.pos.y - self.puerta.pos.y)<10:
+        if abs(self.bomber.pos.x - self.puerta.pos.x)<20 and abs(self.bomber.pos.y - self.puerta.pos.y)<20:
             if self.puerta.abrir():
-                self.game_over = True
+                self.level_passed = True
         else:
             self.puerta.cerrar()
 
@@ -254,7 +295,7 @@ class Controller:
         
         # MATAR BOTS
         for bot in self.enemigos:
-            if ((bot.pos.x+25)/50,(bot.pos.y+25)/50) in rang_explosion_player:
+            if (int((bot.pos.x+25)/50),int((bot.pos.y+25)/50)) in rang_explosion_player:
                 self.enemigos.remove(bot)
                 print("Muere BoT!")
                 del bot
@@ -262,6 +303,7 @@ class Controller:
         # MATAR PERSONAJE -> GAME OVER
         if (int((self.bomber.pos.x+25)/50),int((self.bomber.pos.y+25)/50)) in rang_explosion:
             #del self.bomber
+            self.bomber.burn()
             print("Game Over")
             self.game_over = True
 
@@ -291,8 +333,8 @@ class Controller:
 
         for bot in self.enemigos:            
 
-            bot_x = int((bot.pos.x + 25)/50)
-            bot_y = int((bot.pos.y + 25)/50)
+            bot_x = int((bot.pos.x +25)/50)
+            bot_y = int((bot.pos.y +25)/50)
 
             if bot.vel.x == 0 and bot.vel.y == 0:
                 des = np.random.choice(np.arange(0, 2), p=[0.2,0.8])
@@ -412,7 +454,7 @@ class Controller:
         
         return pos_ladrillos
 
-    def get_bloques_pos(self, nbloques = 4, pos_prohibidas = [] ):
+    def create_bloques(self, nbloques = 4, pos_prohibidas = [] ):
         """
         Entrega lista de bloques, correspondiente a la distribución incicial de bloques en el mapa
         Estas posiciones son aleatorias, sin embargo hay localizaciones donde no pueden existir estos bloques
@@ -430,6 +472,7 @@ class Controller:
             nuevo_bloque = Vector(x,y)
             if not (nuevo_bloque in pos_prohibidas + pos_bloques):
                 pos_bloques.append(nuevo_bloque)
+                self.bloques.append(Bloque(nuevo_bloque))
                 bloques+=1
         return pos_bloques
 
@@ -447,7 +490,10 @@ class Controller:
             self.map[int((bomb.x + 25)/50)][int((bomb.y + 25)/50)] = 9
     
 
-    def set_bonus(self,  pos_bloques, nbonus=4):
+    def create_bonus(self,  pos_bloques, nbonus=4):
+        """
+        Create bonus
+        """
         bonus_pos = []
         nladrillos = len(pos_bloques)
         i=0
@@ -464,20 +510,35 @@ class Controller:
             self.bonus.append(Bonus(pos, tipo))
 
 
-    def create_enemys(self, enemy_type, n, pos_prohibidas=[]):
-        
-        enemys_type = {'bomber':Bomber, 'ninja':'', 'ghost':''}
+    def create_enemys(self, enemy_type, n1, n2, n3, pos_prohibidas=[]):
         enemys_pos = []
-        enemy = 0
+        for i in range(0,n1):
+            ninja, ninja_pos = self.create_enemy(pos_prohibidas, "ninja") 
+            self.enemigos.append(ninja)
+            enemys_pos.append(ninja_pos)
 
-        while enemy < n:
+        for i in range(0,n2):
+            tortuga, tortuga_pos = self.create_enemy(pos_prohibidas, "tortuga") 
+            self.enemigos.append(tortuga)
+            enemys_pos.append(tortuga_pos)
+
+        for i in range(0,n3):
+            tortuga, tortuga_pos = self.create_enemy(pos_prohibidas, "tortuga_humanoide") 
+            self.enemigos.append(tortuga)
+            enemys_pos.append(tortuga_pos)
+
+        return enemys_pos
+
+
+    def create_enemy(self, pos_prohibidas, E):
+
+        Enemy_dic = {"ninja":Ninja, "tortuga": Tortuga, "tortuga_humanoide": Humanoide}
+        Enemy = Enemy_dic[E]
+        while True:
             x = random.randint(1,self._w-2)*50
             y = random.randint(1,self._h-2)*50
             enemy_pos = Vector(x,y)
-            
             if not ( enemy_pos in pos_prohibidas):
-                enemys_pos.append(enemy_pos)
-                self.enemigos.append(Bomber(enemy_pos, speed=3))
-                enemy+=1
-            
-        return enemys_pos
+                enemy = Enemy(enemy_pos, speed=self.params["enemy_"+E+"_speed"], max_bombs = self.params["enemy_"+E+"_bombs"])
+                break
+        return enemy, enemy_pos

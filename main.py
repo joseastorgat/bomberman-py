@@ -10,8 +10,6 @@ from Controller.control import *
 os.environ['SDL_VIDEO_CENTERED'] = '1'  # centrar pantalla
 
 def main():
-    ancho = 650
-    alto = 650
     try:
 	    with open("Config/config.yaml","r") as stream:
 	        params = yaml.load(stream)

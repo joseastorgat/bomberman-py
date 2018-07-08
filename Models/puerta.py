@@ -35,7 +35,6 @@ class Puerta(Figura):
         glPushMatrix()
         if self.init_time !=0:
             i = 1.0 - abs( time.get_ticks() - self.init_time )/2000
-            print(i)
             glScale(i,1,1)
         else:
             i = 1
@@ -106,21 +105,3 @@ class Puerta(Figura):
     def cerrar(self):
         self.init_time = 0
         self.crear()
-
-
-
-
-        # if self.sombra:
-        #     glColor3f(0.0/255.0, 72.0/255.0, 0.0/255.0) 
-
-        #     glVertex2f(47, 0)
-        #     glVertex2f(45, -3)
-        #     glVertex2f(0, -3)
-        #     glVertex2f(0, 0)
-        #     glEnd()
-        #     glBegin(GL_TRIANGLES)
-
-        #     for i in range(45,3,-5):
-        #         glVertex2i(i,-3)
-        #         glVertex2i(i-2,-6)
-        #         glVertex2i(i-4,-3)

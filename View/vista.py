@@ -4,7 +4,7 @@ from Utils.CC3501Utils import *
 import os
 
 class Vista:
-    def __init__(self, fondo, ladrillos, bomber, enemigos, bloques, bonus, puerta):
+    def __init__(self, width, height, fondo, ladrillos, bomber, enemigos, bloques, bonus, puerta):
         self.fondo     = fondo
         self.bomber    = bomber
         self.enemigos  = enemigos
@@ -12,17 +12,21 @@ class Vista:
         self.bloques   = bloques
         self.bonus     = bonus
         self.puerta    = puerta
+        self.width = width
+        self.height= height
 
     def dibujar(self):
-        # revisar si es necesario volver a negro la pantalla
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # limpiar buffers
         
-        #glClearColor(color)(0.0/255.0, 120.0/255.0, 0.0/255.0,0.0)
         self.fondo.dibujar()
+        
         
         self.puerta.dibujar()
         for bonus in self.bonus:
             bonus.dibujar()
+
+        for bomba in self.bomber.exploded_bombs:
+            bomba.dibujar()
 
         for ladrillo in self.ladrillos:
             ladrillo.dibujar()
@@ -30,31 +34,43 @@ class Vista:
         for bloque in self.bloques:
             bloque.dibujar()
 
+        for bomba in self.bomber.active_bombs:
+            bomba.dibujar()
+        
         for enemigo in self.enemigos:
             for bomba_enemiga in enemigo.active_bombs:
                 bomba_enemiga.dibujar()
 
             for bomba in enemigo.exploded_bombs:
                 bomba.dibujar()
-        
+            enemigo.crear()
             enemigo.dibujar()
+
+        self.bomber.crear()
         
         self.bomber.dibujar()
-        
-        for bomba in self.bomber.active_bombs:
-            bomba.dibujar()
-        
-        for bomba in self.bomber.exploded_bombs:
-            bomba.dibujar()
 
         pygame.display.flip()
 
 
     def GameOver(self):
+        self.MostrarMensaje("Game Over")
+
+
+    def LevelPassed(self):
+        self.MostrarMensaje("Level Complete!")
+
+
+    def Level(self, level):
+        self.MostrarMensaje("Level "+ str(level))
+
+
+
+    def MostrarMensaje(self, Mensaje):
         self.dibujar()
         texture = glGenTextures(1)
         font = pygame.font.Font(os.path.join("Resources/Fonts/8bit.ttf"), 50)
-        textSurface = font.render("Game Over", True, (255,255,255,255), (0,0,0,0))
+        textSurface = font.render(Mensaje, True, (255,255,255,0), (0,0,0,0))
         tex_width, tex_height = textSurface.get_size()
         image = pygame.image.tostring(textSurface, "RGBX", True)
         glBindTexture(GL_TEXTURE_2D, texture)
@@ -64,13 +80,13 @@ class Vista:
         glBindTexture(GL_TEXTURE_2D, 0)
         
         glPushMatrix()
-        glTranslatef(25, 300, 0.0)
+        glTranslatef(int(self.width/15), int(self.height/2)-50, 0.0)
         glBindTexture(GL_TEXTURE_2D, texture)
         glBegin(GL_QUADS)
         
         x=0
         y=0
-        width = 600
+        width = self.width - 100
         height = 70
         
         glTexCoord(0, 0)
