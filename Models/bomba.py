@@ -250,6 +250,9 @@ class Bomba(Figura):
 
 
     def load_texture(self,j,i):
+        #http://www.pygame.org/wiki/SimpleOpenGL2dClasses
+
+        
         #print("load texture {0}".format(i))
         tex = self.sprites[j][i]
         tex_surface = pygame.image.tostring(tex, 'RGBA')

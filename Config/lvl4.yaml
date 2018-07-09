@@ -1,13 +1,13 @@
 win_width: 650
 win_height: 650
 
-floor_color: [0., 0.47058823529411764, 0]
+floor_color: [1, 1, 1]
 n_bloques: 4
 n_bonus: 4
 
-n_tortuga: 1
-n_tortuga_humanoide: 1
-n_ninjas: 1
+n_tortuga: 0
+n_tortuga_humanoide: 0
+n_ninjas: 6
 n_pope_ninjas: 1
 
 enemy_tortuga_speed: 2
@@ -17,7 +17,7 @@ enemy_pope_ninja_speed: 6
 
 enemy_tortuga_bombs:  0
 enemy_tortuga_humanoide_bombs: 1
-enemy_ninja_bombs: 1
+enemy_ninja_bombs: 3
 enemy_pope_ninja_bombs: 4
 
 bots_can_bomb : 0

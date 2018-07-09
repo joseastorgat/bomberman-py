@@ -66,7 +66,6 @@ class Bomber(Figura):
         if self.n_active_bombs < self.max_bombs:
             self.n_active_bombs+=1
             self.active_bombs.append(Bomba(image=image, pos=Vector(int((self.pos.x+25)/50)*50,int((self.pos.y+25)/50)*50),sound=sound))
-            print("[INFO] space pressed bomba: {0}".format(self.pos))
             return self.pos
         return None
 

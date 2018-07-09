@@ -30,7 +30,7 @@ from Models.tortuga   import Humanoide
 
 
 class Controller:
-    def __init__(self, width, height, scale = 50, level = 0, multiplayer=False):
+    def __init__(self, scale = 50,  multiplayer=False, level = 0, score=0 ):
 
         """
         Condiciones Iniciales del Mundo:
@@ -61,7 +61,7 @@ class Controller:
         
 
         self.level=level
-        win = init(self.width, self.height, "Ninja!")
+        win = init(self.width, self.height, "Ninja Spy I: Attack of Turtles!")
         
         #Iniciación de Variables a Usar:
         self.scale = scale
@@ -113,6 +113,7 @@ class Controller:
                 
         j = random.randint(1, len(pos_bloques)-1)
         self.puerta = Puerta(pos_bloques[j])
+        self.puerta_oculta = True
 
         #MAPA
         self.generate_map()
@@ -145,8 +146,8 @@ class Controller:
         #######################################
         self.sprites = get_explosion_sprites()
         self.bomb_sound = get_explosion_sounds()
-        files = os.listdir("Resources/theme")
-        pygame.mixer.music.load("Resources/theme/"+files[random.randint(0, len(files)-1)])
+        files = os.listdir("Resources/OST")
+        pygame.mixer.music.load("Resources/OST/"+files[random.randint(0, len(files)-1)])
         pygame.mixer.music.play(-1, 0.0)
         pygame.mixer.music.set_volume(0.6)
 
@@ -207,7 +208,7 @@ class Controller:
             pygame.time.wait(500)
             self.vista.GameOver()
             pygame.time.wait(4000)
-            self.__init__(self.width, self.height)
+            self.__init__(lvl=0)
         
         elif self.level_passed:
             pygame.time.wait(250)
@@ -216,7 +217,7 @@ class Controller:
             pygame.time.wait(500)
             self.vista.LevelPassed()
             pygame.time.wait(4000)
-            self.__init__(self.width, self.height, level=self.level+1)
+            self.__init__(level=self.level+1)
         return self.run
 
     #Update Mundo
@@ -235,7 +236,19 @@ class Controller:
                 else:
                     continue
 
-    def update_puerta(self):
+    def update_puerta(self):        
+
+        aparecer = True
+        
+        if self.puerta_oculta:
+            for bloque in self.bloques:
+                if bloque.pos.x == self.puerta.pos.x and bloque.pos.y == self.puerta.pos.y:
+                    aparecer = False
+
+        if aparecer:
+            self.puerta_oculta = False
+            self.puerta.aparecer()
+
 
         if abs(self.bomber.pos.x - self.puerta.pos.x)<20 and abs(self.bomber.pos.y - self.puerta.pos.y)<20:
             if self.puerta.abrir():
@@ -382,8 +395,11 @@ class Controller:
             bot.move()
 
     def bombs_bots(self):
+        """
+        Función que define si un bot coloca una bomba:
+        """
         for bot in self.enemigos:
-            bomb = np.random.choice(np.arange(0, 2), p=[0.975,0.025])
+            bomb = np.random.choice(np.arange(0, 2), p=[0.99,0.01])
             if bomb == 1:
                 pos_bomba = bot.release_bomb(self.sprites,self.bomb_sound)
                 if pos_bomba:
@@ -394,6 +410,13 @@ class Controller:
     ###########################
 
     def mover_personaje(self, keys):
+        """
+        Mueve al personaje en el mapa según la interacción del usuario
+        
+
+        """
+
+
         bomber_x = int((self.bomber.pos.x + 25)/50)
         bomber_y = int((self.bomber.pos.y + 25)/50)
         self.bomber.set_vel(Vector(0,0))
@@ -429,6 +452,9 @@ class Controller:
 
     def create_ladrillos(self):
         """
+        Crea los ladrillos indestructibles del Juego
+        Entrega la posición donde se encuentran los ladrillos
+        
         """
 
         pos_ladrillos = []
@@ -477,6 +503,10 @@ class Controller:
         return pos_bloques
 
     def generate_map(self):
+        """
+        Crea un "mapa", que es una matriz numpy que indica donde se encuentra ciertos objetos del juego
+        """
+
         self.map = np.zeros((self._w, self._h))
         # Ladrillos indestructibles
         for ladrillo in self.ladrillos:
@@ -492,7 +522,9 @@ class Controller:
 
     def create_bonus(self,  pos_bloques, nbonus=4):
         """
-        Create bonus
+        Crea bonus en las posiciones de bloques destructibles
+        Los bonus se reparten de manera random entre bonus de bombas o de velocidad
+
         """
         bonus_pos = []
         nladrillos = len(pos_bloques)

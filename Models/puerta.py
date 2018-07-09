@@ -11,6 +11,7 @@ class Puerta(Figura):
     def __init__(self, pos=Vector(0, 0), rgb=(1.0, 1.0, 1.0)):
         self.sombra = False
         self.init_time = 0
+        self.figura = self.escondida
         super().__init__(pos, rgb)
 
 
@@ -19,7 +20,7 @@ class Puerta(Figura):
             self.sombra = True
             self.crear()
 
-    def figura(self):
+    def puerta(self):
         # Se dibuja la nube
 
 
@@ -89,6 +90,9 @@ class Puerta(Figura):
         glEnd()
 
 
+    def escondida(self):
+        pass
+
 
     def abrir(self, timeout = 2.0):
         self.crear()
@@ -101,6 +105,9 @@ class Puerta(Figura):
             return True
         return False
 
+
+    def aparecer(self):
+        self.figura = self.puerta
 
     def cerrar(self):
         self.init_time = 0
