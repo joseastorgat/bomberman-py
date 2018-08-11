@@ -208,7 +208,7 @@ class Controller:
             pygame.time.wait(500)
             self.vista.GameOver()
             pygame.time.wait(4000)
-            self.__init__(lvl=0)
+            self.__init__(level=0)
         
         elif self.level_passed:
             pygame.time.wait(250)
